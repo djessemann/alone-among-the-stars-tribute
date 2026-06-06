@@ -103,6 +103,12 @@
   .pip{ display:block; width:18px; height:18px; border-radius:50%; background:#111; }
   .die.rolling{ animation:shake .12s linear infinite; }
   @keyframes shake{ 0%{transform:rotate(-6deg)} 50%{transform:rotate(6deg)} 100%{transform:rotate(-6deg)} }
+  /* medium die — sits beside the revealed card */
+  .die.mid{ width:96px; height:96px; border-radius:18px; padding:12px; gap:3px; }
+  .die.mid .pip{ width:13px; height:13px; }
+  /* thumbnail die — beside each entry's card */
+  .die.thumb{ width:48px; height:48px; border-radius:9px; padding:6px; gap:2px; }
+  .die.thumb .pip{ width:7px; height:7px; }
 
   /* ---------- cards (typographic) ---------- */
   .card-grid{ display:flex; flex-wrap:wrap; gap:16px; justify-content:center; max-width:380px; }
@@ -121,6 +127,13 @@
     color:var(--dimmer);
     font-size:22px;
   }
+  /* picked-but-not-yet-flipped: a bright ring + lift, no reveal */
+  .card.back.selected{
+    border-color:var(--fg); color:var(--fg);
+    box-shadow:0 0 0 2px var(--fg), 0 0 22px rgba(242,240,234,.35);
+    transform:translateY(-5px);
+  }
+  .card.back.selected:active{ transform:translateY(-5px) scale(.95); }
   /* face up */
   .card.face{ background:var(--card); color:var(--card-ink); box-shadow:0 0 22px rgba(245,243,238,.18); }
   .card.face.red{ color:var(--card-red); }
@@ -136,6 +149,8 @@
   .card.reveal-card .corner{ font-size:26px; }
   .card.reveal-card .corner .s{ font-size:22px; }
   @keyframes zoomIn{ from{ transform:scale(.4); opacity:.2 } to{ transform:scale(1); opacity:1 } }
+  /* die + card sitting together on the reveal screen */
+  .reveal-row{ display:flex; align-items:center; justify-content:center; gap:18px; flex-wrap:wrap; }
 
   /* thumbnail */
   .card.thumb{ width:46px; height:66px; border-radius:6px; }
@@ -196,6 +211,7 @@
   .fj-meta .pn{ color:var(--fg); font-weight:700; }
   .fj-entry{ padding:22px 0; border-top:1px solid var(--line); display:flex; flex-direction:column; gap:14px; min-width:0; }
   .fj-entry:first-of-type{ border-top:none; }
+  .fj-entry-head{ display:flex; gap:12px; align-items:center; }
   .fj-body{ color:var(--fg); font-size:12px; line-height:1.7; white-space:pre-wrap;
     overflow-wrap:break-word; word-break:break-word; }
 
@@ -273,25 +289,22 @@ const RANKS = {
 };
 const RANK_ORDER = ['A','2','3','4','5','6','7','8','9','10','J','Q','K'];
 
-// Arrival outcome by roll
+// Discovery circumstance by the per-card roll (1-2 / 3-4 / 5-6)
 function outcomeForRoll(roll){
   if(roll <= 2) return 'arduous';
   if(roll <= 4) return 'sudden';
   return 'resting';
 }
-const ARRIVAL_LINE = {
-  arduous: "You reach a planet, though it's arduous to get to.",
-  sudden:  "You come upon a planet suddenly.",
-  resting: "You spot a planet as you are resting.",
-};
-const ARRIVAL_VARIANT = {
-  arduous: "Discovered after a hard journey",
-  sudden:  "Discovered all of a sudden",
-  resting: "Discovered while resting",
+// Prepended to the suit + location phrase to open the writing prompt.
+const DISCOVERY_INTRO = {
+  arduous: 'After a long and arduous journey, you come upon',
+  sudden:  'All of the sudden, you come upon',
+  resting: "As you're resting, you spot",
 };
 
 function seePart(card){
-  return `You see ${SUITS[card.suit].phrase} ${RANKS[card.rank]}.`;
+  const intro = DISCOVERY_INTRO[outcomeForRoll(card.roll)];
+  return `${intro} ${SUITS[card.suit].phrase} ${RANKS[card.rank]}.`;
 }
 function fullPrompt(card){
   return `${seePart(card)} Describe it in your journal.`;
@@ -362,8 +375,9 @@ function saveArchive(arr){
 /* ============================================================
    PRESENTATIONAL COMPONENTS
    ============================================================ */
-function Card({ card, faceUp, variant='', onClick }){
+function Card({ card, faceUp, variant='', selected=false, onClick }){
   const cls = ['card', variant];
+  if(selected) cls.push('selected');
   if(faceUp){
     const s = SUITS[card.suit];
     cls.push('face'); if(s.red) cls.push('red');
@@ -379,14 +393,14 @@ function Card({ card, faceUp, variant='', onClick }){
   return <div className={cls.join(' ')} onClick={onClick}>✦</div>;
 }
 
-function Die({ value, rolling }){
+function Die({ value, rolling, variant='' }){
   // pip layout per face
   const layouts = {
     1:[4], 2:[0,8], 3:[0,4,8], 4:[0,2,6,8], 5:[0,2,4,6,8], 6:[0,2,3,5,6,8],
   };
   const on = new Set(layouts[value] || []);
   return (
-    <div className={'die' + (rolling ? ' rolling' : '')}>
+    <div className={['die', variant, rolling ? 'rolling' : ''].filter(Boolean).join(' ')}>
       {Array.from({length:9}).map((_,i) =>
         <span key={i}>{ on.has(i) ? <span className="pip" /> : null }</span>
       )}
@@ -419,6 +433,7 @@ function App(){
   // in-progress journey (ephemeral — not persisted)
   const [session, setSession] = useState(null);
   const [activeIndex, setActiveIndex] = useState(null);
+  const [selectedIndex, setSelectedIndex] = useState(null); // card picked on cardSelect, awaiting roll
   const [draftText, setDraftText] = useState('');
   const [editingExisting, setEditingExisting] = useState(false);
 
@@ -439,10 +454,11 @@ function App(){
     setScreen('intro');
   }
   function goTitle(){
-    setSession(null); setActiveIndex(null); setDraftText('');
+    setSession(null); setActiveIndex(null); setSelectedIndex(null); setDraftText('');
     setOverlay(null); setScreen('title');
   }
 
+  // first roll — only sets how many points of interest the planet holds
   function rollDice(){
     setRolling(true);
     const spin = setInterval(() => setDieFace(1 + Math.floor(Math.random()*6)), 90);
@@ -453,7 +469,6 @@ function App(){
       setRolling(false);
       setSession({
         roll,
-        outcome: outcomeForRoll(roll),
         color: randomPlanetColor(),
         cards: deal(roll),
       });
@@ -461,12 +476,35 @@ function App(){
     }, 850);
   }
 
+  // tapping a card on cardSelect: revisit finished ones, otherwise pick (toggle) it
   function tapCard(i){
     if(session.cards[i].done){
       setActiveIndex(i); setScreen('revisit');
     }else{
-      setActiveIndex(i); setScreen('cardReveal');
+      setSelectedIndex(prev => prev === i ? null : i);
     }
+  }
+
+  // second roll — accompanies the picked card and shapes its discovery prompt
+  function rollForCard(){
+    if(selectedIndex === null) return;
+    const idx = selectedIndex;
+    setActiveIndex(idx);
+    setSelectedIndex(null);
+    setScreen('cardReveal');
+    setRolling(true);
+    const spin = setInterval(() => setDieFace(1 + Math.floor(Math.random()*6)), 90);
+    setTimeout(() => {
+      clearInterval(spin);
+      const roll = 1 + Math.floor(Math.random()*6);
+      setDieFace(roll);
+      setRolling(false);
+      setSession(s => {
+        const cards = s.cards.slice();
+        cards[idx] = { ...cards[idx], roll };
+        return { ...s, cards };
+      });
+    }, 850);
   }
 
   function startWriting(){
@@ -498,12 +536,11 @@ function App(){
   function publishPlanet(name){
     const entries = session.cards
       .filter(c => c.done)
-      .map(c => ({ rank:c.rank, suit:c.suit, prompt:fullPrompt(c), body:c.body }));
+      .map(c => ({ rank:c.rank, suit:c.suit, roll:c.roll, prompt:fullPrompt(c), body:c.body }));
     const planet = {
       id: 'p' + Date.now() + Math.floor(Math.random()*1000),
       name: name.trim(),
       color: session.color,
-      outcome: session.outcome,
       roll: session.roll,
       createdAt: Date.now(),
       entries,
@@ -511,7 +548,7 @@ function App(){
     };
     const next = [planet, ...archive];
     setArchive(next); saveArchive(next);
-    setSession(null); setActiveIndex(null); setDraftText('');
+    setSession(null); setActiveIndex(null); setSelectedIndex(null); setDraftText('');
     setToast(true);
     setScreen('archive');
   }
@@ -579,7 +616,9 @@ function App(){
       <div className="screen with-chrome fade-in">
         <div className="center">
           <Die value={session.roll} />
-          <p className="flavor" style={{marginTop:'40px'}}>{ARRIVAL_LINE[session.outcome]}</p>
+          <p className="flavor" style={{marginTop:'40px'}}>
+            You spot a planet. Ship sensors show {session.roll} {session.roll===1?'point':'points'} of interest.
+          </p>
         </div>
         <div className="btn-stack">
           <button className="btn primary" onClick={() => setScreen('cardSelect')}>Explore</button>
@@ -595,7 +634,7 @@ function App(){
         <div className="center" style={{justifyContent:'center', gap:'32px'}}>
           <div className="card-grid">
             {session.cards.map((c,i) =>
-              <Card key={i} card={c} faceUp={c.done} onClick={() => tapCard(i)} />
+              <Card key={i} card={c} faceUp={c.done} selected={selectedIndex===i} onClick={() => tapCard(i)} />
             )}
           </div>
 
@@ -613,12 +652,15 @@ function App(){
             <>
               <p className="flavor">
                 {remaining === session.roll
-                  ? `You land. You pick up ${session.roll} ${session.roll===1?'point':'points'} of interest.`
-                  : `There ${remaining===1?'is':'are'} ${remaining} ${remaining===1?'point':'points'} of interest left.`}
+                  ? `You land. ${remaining} ${remaining===1?'point':'points'} of interest remain${remaining===1?'s':''}.`
+                  : `${remaining} ${remaining===1?'point':'points'} of interest remain${remaining===1?'s':''}.`}
               </p>
-              <p className="instruction">
-                {remaining === session.roll ? 'Pick a card to investigate.' : 'Pick another card to investigate.'}
-              </p>
+              <p className="instruction">Pick a card, then roll.</p>
+              <div className="btn-stack" style={{marginTop:'8px'}}>
+                <button className="btn primary" disabled={selectedIndex===null}
+                  style={{opacity: selectedIndex===null ? .4 : 1}}
+                  onClick={rollForCard}>Roll</button>
+              </div>
             </>
           )}
         </div>
@@ -629,15 +671,22 @@ function App(){
 
   function renderCardReveal(){
     const card = session.cards[activeIndex];
+    const settled = !rolling && !!card.roll;
     return (
       <div className="screen with-chrome fade-in">
         <div className="center">
-          <Card card={card} faceUp variant="reveal-card" />
-          <p className="flavor" style={{marginTop:'36px'}}>{seePart(card)}</p>
-          <p className="instruction">Describe it in your journal.</p>
+          <div className="reveal-row">
+            <Die value={settled ? card.roll : dieFace} rolling={rolling} variant="mid" />
+            {settled
+              ? <Card card={card} faceUp variant="reveal-card" />
+              : <div className="card back reveal-card">✦</div>}
+          </div>
+          {settled && <p className="flavor" style={{marginTop:'36px'}}>{seePart(card)}</p>}
+          {settled && <p className="instruction">Describe it in your journal.</p>}
         </div>
         <div className="btn-stack">
-          <button className="btn primary" onClick={startWriting}>Start writing</button>
+          <button className="btn primary" disabled={!settled} style={{opacity: settled ? 1 : .4}}
+            onClick={startWriting}>Start writing</button>
         </div>
         <Chrome onHome={onHome} onHelp={() => setOverlay('help')} />
       </div>
@@ -649,6 +698,7 @@ function App(){
     return (
       <div className="screen fade-in">
         <div className="entry-header">
+          <Die value={card.roll} variant="thumb" />
           <Card card={card} faceUp variant="thumb" />
           <div className="htext">{seePart(card)}</div>
         </div>
@@ -676,6 +726,7 @@ function App(){
     return (
       <div className="screen fade-in">
         <div className="entry-header">
+          <Die value={card.roll} variant="thumb" />
           <Card card={card} faceUp variant="thumb" />
           <div className="htext">{seePart(card)}</div>
         </div>
@@ -753,7 +804,6 @@ function App(){
           <div className="planet" style={{ width:96, height:96, flex:'0 0 auto', background:p.color }} />
           <div className="fj-meta">
             <div className="pn">{p.name}</div>
-            <div>{ARRIVAL_VARIANT[p.outcome]}</div>
             <div>Explored {fmtDate(p.createdAt)}</div>
             <div>{p.entries.length} {p.entries.length===1?'entry':'entries'}</div>
           </div>
@@ -761,7 +811,10 @@ function App(){
         <div className="grow" style={{overflowY:'auto', paddingTop:'8px'}}>
           {p.entries.map((e,i) =>
             <div key={i} className="fj-entry">
-              <Card card={e} faceUp variant="thumb" />
+              <div className="fj-entry-head">
+                {e.roll ? <Die value={e.roll} variant="thumb" /> : null}
+                <Card card={e} faceUp variant="thumb" />
+              </div>
               <div className="fj-body selectable">{e.body}</div>
             </div>
           )}
