@@ -32,14 +32,18 @@
     font-size:16px;
   }
   *{ box-sizing:border-box; -webkit-tap-highlight-color:transparent; }
-  html,body{ margin:0; height:100%; background:var(--bg); overflow-x:hidden; }
+  /* Lock the document: the page can't drag-scroll or rubber-band (native-app feel). */
+  html,body{ margin:0; width:100%; height:100%; background:var(--bg); overflow:hidden; position:fixed; }
   body{
     font-family:'Space Mono', ui-monospace, 'SF Mono', Menlo, Consolas, monospace;
     color:var(--fg);
     -webkit-font-smoothing:antialiased;
     overscroll-behavior:none;
   }
-  #root{ height:100%; }
+  /* #root is the single scroll surface. Screens that fit feel pinned in place;
+     only longer content (text fields, journals, the archive) scrolls — and
+     overscroll-behavior:contain keeps that scroll from chaining to the page. */
+  #root{ height:100%; overflow-y:auto; -webkit-overflow-scrolling:touch; overscroll-behavior:contain; }
   button{ font-family:inherit; cursor:pointer; }
   /* prevent text selection on UI, allow in writing fields */
   body{ -webkit-user-select:none; user-select:none; }
@@ -59,7 +63,7 @@
   /* reserve a band at the bottom so nothing sits under the fixed home/help chrome */
   .screen.with-chrome{ padding-bottom: calc(var(--safe-bottom) + 94px); }
   .center{ flex:1; display:flex; flex-direction:column; align-items:center; justify-content:center; gap:8px; text-align:center; }
-  .grow{ flex:1; }
+  .grow{ flex:1; overscroll-behavior:contain; -webkit-overflow-scrolling:touch; }
 
   /* ---------- typography ---------- */
   h1{ font-size: clamp(28px, 9vw, 42px); font-weight:700; line-height:1.05; margin:0; letter-spacing:-1px; }
@@ -155,7 +159,7 @@
   .entry-field{
     flex:1; min-height:0; margin-top:18px; width:100%; background:transparent; color:var(--fg);
     border:1.5px solid var(--fg); border-radius:14px; padding:18px; font-size:13.5px; line-height:1.65;
-    font-family:inherit; resize:none;
+    font-family:inherit; resize:none; overscroll-behavior:contain; -webkit-overflow-scrolling:touch;
   }
   .entry-field::placeholder{ color:var(--dim); }
   .entry-field:focus{ outline:none; border-color:var(--fg); }
@@ -204,7 +208,7 @@
   .overlay .confirm-text{ font-size:14.5px; line-height:1.6; font-style:italic; color:var(--dim); max-width:26ch; }
   .close-x{ position:absolute; top: calc(var(--safe-top) + 16px); right:20px; background:none; border:none;
     color:var(--fg); font-size:24px; line-height:1; z-index:2; }
-  .help-body{ overflow-y:auto; -webkit-overflow-scrolling:touch; padding-top:40px; font-size:12px; line-height:1.75;
+  .help-body{ overflow-y:auto; -webkit-overflow-scrolling:touch; overscroll-behavior:contain; padding-top:40px; font-size:12px; line-height:1.75;
     color:var(--fg); white-space:pre-wrap; overflow-wrap:break-word; word-break:break-word; }
   .help-body .selectable{ }
 
