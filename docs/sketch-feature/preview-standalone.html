@@ -1,0 +1,731 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover" />
+<meta name="theme-color" content="#000000" />
+<title>Alone Among the Stars — sketch preview</title>
+<link href="https://fonts.googleapis.com/css2?family=Space+Mono:ital,wght@0,400;0,700;1,400;1,700&display=swap" rel="stylesheet" />
+<style>
+  :root{
+    --bg:#000;
+    --fg:#f2f0ea;
+    --dim:#8a8a8a;
+    --dimmer:#5a5a5a;
+    --red:#e2382f;
+    --card:#f5f3ee;
+    --card-ink:#111;
+    --card-red:#c4322b;
+    --line:#2a2a2a;
+    --pad: max(20px, env(safe-area-inset-left)) ;
+    --safe-top: env(safe-area-inset-top);
+    --safe-bottom: env(safe-area-inset-bottom);
+    font-size:16px;
+  }
+  *{ box-sizing:border-box; -webkit-tap-highlight-color:transparent; }
+  html,body{ margin:0; width:100%; height:100%; background:var(--bg); overflow:hidden; position:fixed; }
+  body{
+    font-family:'Space Mono', ui-monospace, 'SF Mono', Menlo, Consolas, monospace;
+    color:var(--fg);
+    -webkit-font-smoothing:antialiased;
+    overscroll-behavior:none;
+  }
+  #root{ height:100%; overflow-y:auto; -webkit-overflow-scrolling:touch; overscroll-behavior:contain; }
+  button{ font-family:inherit; cursor:pointer; }
+  body{ -webkit-user-select:none; user-select:none; }
+  textarea, input, .selectable{ -webkit-user-select:text; user-select:text; }
+
+  /* ---------- layout shell ---------- */
+  .screen{
+    position:relative;
+    min-height:100%;
+    display:flex;
+    flex-direction:column;
+    padding: calc(var(--safe-top) + 20px) 24px calc(var(--safe-bottom) + 20px);
+    max-width:560px;
+    margin:0 auto;
+    width:100%;
+  }
+  .screen.with-chrome{ padding-bottom: calc(var(--safe-bottom) + 94px); }
+  .center{ flex:1; display:flex; flex-direction:column; align-items:center; justify-content:center; gap:8px; text-align:center; }
+  .grow{ flex:1; overscroll-behavior:contain; -webkit-overflow-scrolling:touch; }
+
+  /* ---------- typography ---------- */
+  h1{ font-size: clamp(28px, 9vw, 42px); font-weight:700; line-height:1.05; margin:0; letter-spacing:-1px; }
+  .byline{ color:var(--fg); font-size:13px; margin-top:14px; }
+  .tagline{ color:var(--dim); font-size:13px; line-height:1.5; max-width:26ch; }
+  .flavor{ font-style:italic; color:var(--dim); font-size:13.5px; line-height:1.55; max-width:28ch; }
+  .instruction{ color:var(--fg); font-size:13.5px; line-height:1.55; max-width:28ch; }
+  .narration{ font-style:italic; color:var(--dim); font-size:14.5px; line-height:1.6; max-width:26ch; }
+  .heading{ color:var(--fg); font-size:14.5px; letter-spacing:1px; }
+
+  /* ---------- buttons ---------- */
+  .btn{
+    appearance:none; border:1.5px solid var(--fg); background:transparent; color:var(--fg);
+    font-size:14.5px; padding:10px 26px; border-radius:999px; font-weight:400;
+    transition:transform .08s ease, opacity .15s ease;
+    min-width:148px;
+  }
+  .btn:active{ transform:scale(.96); }
+  .btn.primary{ background:var(--fg); color:#000; border-color:var(--fg); }
+  .btn.danger{ color:var(--red); border-color:var(--red); background:transparent; }
+  .btn-stack{ display:flex; flex-direction:column; align-items:center; gap:14px; }
+
+  /* ---------- persistent chrome ---------- */
+  .chrome{ position:fixed; bottom: calc(var(--safe-bottom) + 18px); width:46px; height:46px; border-radius:50%;
+    border:1.5px solid var(--fg); background:#000; display:flex; align-items:center; justify-content:center;
+    color:var(--fg); z-index:40; }
+  .chrome:active{ transform:scale(.94); }
+  .chrome.home{ left:24px; }
+  .chrome.help{ right:24px; font-size:16px; }
+  .chrome svg{ width:20px; height:20px; }
+
+  /* ---------- dice ---------- */
+  .die{ width:128px; height:128px; border-radius:24px; background:var(--card); display:grid;
+    grid-template-columns:repeat(3,1fr); grid-template-rows:repeat(3,1fr); padding:18px; gap:4px; }
+  .die > span{ display:flex; align-items:center; justify-content:center; }
+  .pip{ display:block; width:18px; height:18px; border-radius:50%; background:#111; }
+
+  /* ---------- cards (typographic) ---------- */
+  .card-grid{ display:flex; flex-wrap:wrap; gap:16px; justify-content:center; max-width:380px; }
+  .card{
+    position:relative; border-radius:12px; flex:0 0 auto;
+    width:96px; height:140px;
+    display:flex; align-items:center; justify-content:center;
+    transition:transform .12s ease;
+  }
+  .card:active{ transform:scale(.95); }
+  .card.back{
+    background:
+      repeating-linear-gradient(45deg, #1b1b1b 0 6px, #0d0d0d 6px 12px);
+    border:1.5px solid #3a3a3a;
+    color:var(--dimmer);
+    font-size:22px;
+  }
+  .card.face{ background:var(--card); color:var(--card-ink); box-shadow:0 0 22px rgba(245,243,238,.18); }
+  .card.face.red{ color:var(--card-red); }
+  .card .center-glyph{ font-size:44px; line-height:1; }
+  .card .corner{ position:absolute; font-size:15px; line-height:1; text-align:center; font-weight:700; }
+  .card .corner.tl{ top:8px; left:9px; }
+  .card .corner.br{ bottom:8px; right:9px; }
+  .card .corner .r{ display:block; }
+  .card .corner .s{ display:block; font-size:13px; }
+
+  .card.reveal-card{ width:188px; height:272px; animation:zoomIn .35s cubic-bezier(.2,.8,.2,1); }
+  .card.reveal-card .center-glyph{ font-size:88px; }
+  .card.reveal-card .corner{ font-size:26px; }
+  .card.reveal-card .corner .s{ font-size:22px; }
+  @keyframes zoomIn{ from{ transform:scale(.4); opacity:.2 } to{ transform:scale(1); opacity:1 } }
+
+  .card.thumb{ width:46px; height:66px; border-radius:6px; }
+  .card.thumb .center-glyph{ font-size:20px; }
+  .card.thumb .corner{ font-size:8px; }
+  .card.thumb .corner.tl{ top:4px; left:4px; }
+  .card.thumb .corner.br{ bottom:4px; right:4px; }
+  .card.thumb .corner .s{ font-size:7px; }
+
+  /* ---------- planet visual ---------- */
+  .planet{ border-radius:50%; box-shadow:0 0 40px rgba(255,255,255,.06); }
+
+  /* crescent moon (intro) */
+  .moon{ position:relative; width:120px; height:120px; border-radius:50%; background:var(--card);
+    box-shadow:0 0 60px rgba(245,243,238,.15); }
+  .moon::after{ content:''; position:absolute; top:-12px; left:22px; width:120px; height:120px; border-radius:50%; background:#000; }
+
+  /* ---------- journal entry ---------- */
+  .entry-header{ display:flex; gap:14px; align-items:flex-start; padding-top:8px; }
+  .entry-header .htext{ font-style:italic; color:var(--dim); font-size:12px; line-height:1.5; }
+  .entry-field{
+    flex:1; min-height:0; margin-top:18px; width:100%; background:transparent; color:var(--fg);
+    border:1.5px solid var(--fg); border-radius:14px; padding:18px; font-size:13.5px; line-height:1.65;
+    font-family:inherit; resize:none; overscroll-behavior:contain; -webkit-overflow-scrolling:touch;
+  }
+  .entry-field::placeholder{ color:var(--dim); }
+  .entry-field:focus{ outline:none; border-color:var(--fg); }
+  .entry-actions{ display:flex; justify-content:space-between; align-items:center; margin-top:22px; gap:14px; }
+  .entry-actions .btn{ min-width:0; flex:0 1 auto; }
+
+  /* ---------- name planet ---------- */
+  .name-field{
+    background:transparent; border:none; border-bottom:1.5px solid var(--fg); color:var(--fg);
+    font-family:inherit; font-size:18px; text-align:center; padding:10px 4px; width:min(280px,80vw);
+  }
+  .name-field::placeholder{ color:var(--dim); }
+  .name-field:focus{ outline:none; }
+
+  /* ---------- archive ---------- */
+  .archive-title{ text-align:center; padding:24px 0 18px; letter-spacing:1px; }
+  .archive-grid{ display:grid; grid-template-columns:1fr 1fr; gap:16px; padding-bottom:90px; }
+  .planet-module{ border:1.5px solid var(--line); border-radius:14px; padding:18px 12px; text-align:center;
+    display:flex; flex-direction:column; align-items:center; gap:12px; }
+  .planet-module:active{ transform:scale(.98); }
+  .planet-module .pname{ font-size:12px; }
+  .planet-module .pdate{ font-size:11px; color:var(--dim); }
+  .empty-archive{ text-align:center; color:var(--dim); font-style:italic; font-size:13px; line-height:1.6; max-width:28ch; }
+
+  /* toast */
+  .toast{ position:fixed; left:50%; transform:translateX(-50%); bottom: calc(var(--safe-bottom) + 90px);
+    background:var(--bg); border:1.5px solid var(--fg); border-radius:12px; padding:14px 20px;
+    display:flex; align-items:center; gap:28px; z-index:45; white-space:nowrap; font-size:13px; }
+  .toast button{ background:none; border:none; color:var(--fg); font-size:14.5px; }
+
+  /* ---------- full journal ---------- */
+  .fj-header{ display:flex; gap:16px; align-items:flex-start; padding:8px 0 12px; }
+  .fj-meta{ font-style:italic; color:var(--dim); font-size:11px; line-height:1.6; min-width:0; }
+  .fj-meta .pn{ color:var(--fg); font-weight:700; }
+  .fj-entry{ padding:22px 0; border-top:1px solid var(--line); display:flex; flex-direction:column; gap:14px; min-width:0; }
+  .fj-entry:first-of-type{ border-top:none; }
+  .fj-body{ color:var(--fg); font-size:12px; line-height:1.7; white-space:pre-wrap;
+    overflow-wrap:break-word; word-break:break-word; }
+
+  /* ---------- overlays ---------- */
+  .overlay{ position:fixed; inset:0; background:#000; z-index:60; display:flex;
+    flex-direction:column; padding: calc(var(--safe-top) + 20px) 24px calc(var(--safe-bottom) + 20px); }
+  .overlay.confirm{ align-items:center; justify-content:center; text-align:center; }
+  .overlay .confirm-box{ display:flex; flex-direction:column; align-items:center; gap:30px;
+    width:min(400px, 84vw); border:1.5px solid #3a3a3a; border-radius:20px; padding:52px 28px; }
+  .overlay .confirm-text{ font-size:14.5px; line-height:1.6; font-style:italic; color:var(--dim); max-width:26ch; }
+  .close-x{ position:absolute; top: calc(var(--safe-top) + 16px); right:20px; background:none; border:none;
+    color:var(--fg); font-size:24px; line-height:1; z-index:2; }
+  .help-body{ overflow-y:auto; -webkit-overflow-scrolling:touch; overscroll-behavior:contain; padding-top:40px; font-size:12px; line-height:1.75;
+    color:var(--fg); white-space:pre-wrap; overflow-wrap:break-word; word-break:break-word; }
+
+  /* ---------- sketch (new) ---------- */
+  .sketch-wrap{ flex:1; display:flex; flex-direction:column; gap:16px; min-height:0; }
+  .sketch-head{ text-align:center; align-self:center; margin-top:clamp(4px, 3vh, 26px); }
+  .sketch-head .flavor{ max-width:34ch; }
+  .sketch-actions{ gap:10px; }
+  .sketch-actions .btn{ padding:10px 16px; }
+  .sketch-paper{ position:relative; width:100%; flex:1; min-height:240px;
+    background:var(--card); border-radius:14px; box-shadow:0 0 22px rgba(245,243,238,.12);
+    overflow:hidden; touch-action:none; }
+  .sketch-paper canvas{ position:absolute; inset:0; width:100%; height:100%; display:block;
+    touch-action:none; cursor:crosshair; }
+  .sketch-tools{ display:flex; align-items:center; justify-content:center; gap:16px; }
+  .tool-btn{ width:46px; height:46px; border-radius:50%; border:1.5px solid var(--fg);
+    background:transparent; color:var(--fg); display:flex; align-items:center; justify-content:center; }
+  .tool-btn.active{ background:var(--fg); color:#000; }
+  .tool-btn:active{ transform:scale(.94); }
+  .tool-btn:disabled{ opacity:.32; }
+  .tool-btn svg{ width:21px; height:21px; }
+  .journal-sketch{ width:100%; display:block; border-radius:14px; background:var(--card);
+    box-shadow:0 0 22px rgba(245,243,238,.10); }
+
+  .fade-in{ animation:fade .25s ease; }
+  @keyframes fade{ from{opacity:0} to{opacity:1} }
+</style>
+</head>
+<body>
+<div id="root"></div>
+
+<script>
+/* ============================================================
+   CONTENT / BUILDING BLOCKS
+   ============================================================ */
+const SUITS = {
+  diamonds: { glyph:'♦', red:true,  phrase:'some kind of living being' },
+  clubs:    { glyph:'♣', red:false, phrase:'a plant or other immobile life' },
+  hearts:   { glyph:'♥', red:true,  phrase:'mysterious civilizational ruins' },
+  spades:   { glyph:'♠', red:false, phrase:'a strange natural phenomenon' },
+};
+const SUIT_ORDER = ['diamonds','clubs','hearts','spades'];
+const RANKS = {
+  A:'in a field taller than you', '2':'under the light of the moon(s)', '3':'by a gentle river',
+  '4':'in a steep canyon', '5':'in a treetop', '6':'on the snowy peak of a mountain',
+  '7':'near a volcano', '8':'on a glacier', '9':'deep underground', '10':'on a cliff face',
+  J:'in the desert', Q:'in deep water', K:'floating in the air',
+};
+const RANK_ORDER = ['A','2','3','4','5','6','7','8','9','10','J','Q','K'];
+
+function outcomeForRoll(roll){ if(roll<=2) return 'arduous'; if(roll<=4) return 'sudden'; return 'resting'; }
+const ARRIVAL_LINE = {
+  arduous: "You reach a planet, though it's arduous to get to.",
+  sudden:  "You come upon a planet suddenly.",
+  resting: "You spot a planet as you are resting.",
+};
+const ARRIVAL_VARIANT = {
+  arduous: "Discovered after a hard journey",
+  sudden:  "Discovered all of a sudden",
+  resting: "Discovered while resting",
+};
+function seePart(card){ return 'You see ' + SUITS[card.suit].phrase + ' ' + RANKS[card.rank] + '.'; }
+function fullPrompt(card){ return seePart(card) + ' Describe it in your journal.'; }
+
+const ABOUT_TEXT =
+"✦ Alone Among the Stars ✦\n" +
+"By Takuma Okada | noroadhome.itch.io\n" +
+"A solo roleplaying game about exploring fantastic planets\n\n" +
+"You are a solitary adventurer, hopping from planet to planet exploring. Each world has unique features for you to discover and record. They are represented by cards from a standard deck, placed face down.\n\n" +
+"To find a new planet, roll a six-sided die and place cards face down equal to the number rolled.\n\n" +
+"To flip over a card to discover something, roll a six-sided die:\nOn a 1-2 it is arduous to get to.\nOn a 3-4 you come upon it suddenly.\nOn a 5-6 you spot it as you are resting.\n\n" +
+"The suit and rank determine the discovery. In your ship's log (a small journal if you have one), record a short description and your reaction in a few sentences, and roll for the next card. Each time you complete a planet, give it a number or a name, and find a new planet.\n\n" +
+"Play until you are tired, and want to return home. If you want to remember your travels, save the journal. If the memories bring you pain, burn it.";
+
+const NAME_LIMIT = 20;
+
+/* ============================================================
+   HELPERS
+   ============================================================ */
+function buildDeck(){ const d=[]; for(const s of SUIT_ORDER) for(const r of RANK_ORDER) d.push({rank:r,suit:s}); return d; }
+function deal(n){
+  const deck = buildDeck();
+  for(let i=deck.length-1;i>0;i--){ const j=Math.floor(Math.random()*(i+1)); [deck[i],deck[j]]=[deck[j],deck[i]]; }
+  return deck.slice(0,n).map(c => ({ ...c, body:'', done:false }));
+}
+function randomPlanetColor(){
+  const hue=Math.floor(Math.random()*360), sat=60+Math.floor(Math.random()*35), light=45+Math.floor(Math.random()*25);
+  return 'hsl(' + hue + ' ' + sat + '% ' + light + '%)';
+}
+function fmtDate(ms){ const d=new Date(ms); return (d.getMonth()+1)+'/'+d.getDate()+'/'+d.getFullYear(); }
+// preview-only: keep the archive in memory so it never writes to your real localStorage
+let ARCHIVE = [];
+
+/* ============================================================
+   TINY DOM HELPER
+   ============================================================ */
+function el(tag, props){
+  const n = document.createElement(tag);
+  if(props){
+    for(const k in props){
+      const v = props[k];
+      if(v==null || v===false) continue;
+      if(k==='class') n.className = v;
+      else if(k==='style' && typeof v==='object') Object.assign(n.style, v);
+      else if(k==='html') n.innerHTML = v;
+      else if(k.slice(0,2)==='on' && typeof v==='function') n.addEventListener(k.slice(2).toLowerCase(), v);
+      else if(v===true) n.setAttribute(k, '');
+      else n.setAttribute(k, v);
+    }
+  }
+  for(let i=2;i<arguments.length;i++){
+    let kids = arguments[i];
+    if(!Array.isArray(kids)) kids = [kids];
+    for(const kid of kids){
+      if(kid==null || kid===false) continue;
+      n.appendChild(typeof kid==='object' ? kid : document.createTextNode(String(kid)));
+    }
+  }
+  return n;
+}
+
+const HOME_SVG = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linejoin="round" stroke-linecap="round"><path d="M3 11.5 12 4l9 7.5"/><path d="M5 10.5V20h14v-9.5"/></svg>';
+const PEN_SVG = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linejoin="round" stroke-linecap="round"><path d="M4 20l4-1L19.5 7.5a2.1 2.1 0 0 0-3-3L5 16l-1 4z"/><path d="M14.5 6.5l3 3"/></svg>';
+const ERASER_SVG = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linejoin="round" stroke-linecap="round"><path d="M8 20h11"/><path d="M4.5 15.5l5-5 6 6-3.5 3.5H8.5z"/><path d="M9.5 10.5l4-4 6 6-4 4"/></svg>';
+const UNDO_SVG = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linejoin="round" stroke-linecap="round"><path d="M9 7L4 12l5 5"/><path d="M4 12h10a6 6 0 0 1 0 12h-1"/></svg>';
+const PAPER = '#f5f3ee';
+
+function cardEl(card, faceUp, variant, onClick){
+  const cls = ['card']; if(variant) cls.push(variant);
+  let node;
+  if(faceUp){
+    const s = SUITS[card.suit]; cls.push('face'); if(s.red) cls.push('red');
+    node = el('div', { class:cls.join(' ') },
+      el('span', { class:'corner tl' }, el('span',{class:'r'}, card.rank), el('span',{class:'s'}, s.glyph)),
+      el('span', { class:'center-glyph' }, s.glyph),
+      el('span', { class:'corner br' }, el('span',{class:'r'}, card.rank), el('span',{class:'s'}, s.glyph)));
+  } else {
+    cls.push('back'); node = el('div', { class:cls.join(' ') }, '✦');
+  }
+  if(onClick) node.addEventListener('click', onClick);
+  return node;
+}
+
+function dieEl(value){
+  const layouts = { 1:[4], 2:[0,8], 3:[0,4,8], 4:[0,2,6,8], 5:[0,2,4,6,8], 6:[0,2,3,5,6,8] };
+  const on = new Set(layouts[value] || []);
+  const d = el('div', { class:'die' });
+  for(let i=0;i<9;i++) d.appendChild(el('span', {}, on.has(i) ? el('span',{class:'pip'}) : null));
+  return d;
+}
+
+function chromeEl(withHome){
+  const frag = document.createDocumentFragment();
+  if(withHome) frag.appendChild(el('button', { class:'chrome home', 'aria-label':'Home', html:HOME_SVG, onClick:onHome }));
+  frag.appendChild(el('button', { class:'chrome help', 'aria-label':'Help', onClick:()=>setState({overlay:'help'}) }, '?'));
+  return frag;
+}
+
+/* ============================================================
+   STATE
+   ============================================================ */
+const state = {
+  screen:'title', overlay:null,
+  session:null, activeIndex:null, draftText:'', editingExisting:false,
+  rolling:false, viewId:null, toast:false,
+};
+function setState(patch){ Object.assign(state, patch); render(); }
+
+/* ---------- navigation ---------- */
+function startJourney(){ setState({ session:null, screen:'intro', rolling:false }); }
+function goTitle(){ setState({ session:null, activeIndex:null, draftText:'', overlay:null, screen:'title' }); }
+function onHome(){
+  if(state.screen==='archive' || state.screen==='fullJournal') goTitle();
+  else setState({ overlay:'home' });
+}
+function rollDice(){
+  setState({ rolling:true });
+  setTimeout(() => {
+    const roll = 1 + Math.floor(Math.random()*6);
+    state.session = { roll, outcome:outcomeForRoll(roll), color:randomPlanetColor(), cards:deal(roll), sketch:null };
+    setState({ rolling:false, screen:'diceResult' });
+  }, 850);
+}
+function tapCard(i){
+  if(state.session.cards[i].done) setState({ activeIndex:i, screen:'revisit' });
+  else setState({ activeIndex:i, screen:'cardReveal' });
+}
+function startWriting(){
+  const card = state.session.cards[state.activeIndex];
+  setState({ draftText:card.body || '', editingExisting:card.done, screen:'journalEntry' });
+}
+function saveEntry(){
+  const cards = state.session.cards.slice();
+  cards[state.activeIndex] = { ...cards[state.activeIndex], body:state.draftText, done:true };
+  state.session.cards = cards;
+  setState({ activeIndex:null, screen:'cardSelect' });
+}
+// optional sketch screen, between "finished exploring" and "name the planet"
+function finishSketch(dataURL){ state.session.sketch = dataURL; setState({ screen:'namePlanet' }); }
+function skipSketch(){ state.session.sketch = null; setState({ screen:'namePlanet' }); }
+
+function publishPlanet(name){
+  const entries = state.session.cards.filter(c => c.done)
+    .map(c => ({ rank:c.rank, suit:c.suit, prompt:fullPrompt(c), body:c.body }));
+  const planet = {
+    id:'p'+Date.now()+Math.floor(Math.random()*1000),
+    name:name.trim(), color:state.session.color, outcome:state.session.outcome,
+    roll:state.session.roll, createdAt:Date.now(), entries,
+    sketch: state.session.sketch || null,
+  };
+  ARCHIVE = [planet, ...ARCHIVE];
+  state.session = null; state.activeIndex = null; state.draftText = '';
+  setState({ toast:true, screen:'archive' });
+}
+function burnSession(){ state.overlay = null; goTitle(); }
+function burnPlanet(id){ ARCHIVE = ARCHIVE.filter(p => p.id !== id); setState({ overlay:null, viewId:null, screen:'archive' }); }
+
+/* ============================================================
+   SCREEN RENDERERS
+   ============================================================ */
+function renderTitle(){
+  const screen = el('div', { class:'screen fade-in' });
+  const center = el('div', { class:'center', style:{gap:'0'} });
+  center.appendChild(el('h1', { html:'Alone<br/>Among<br/>the Stars' }));
+  center.appendChild(el('div', { class:'byline' }, 'By Takuma Okada'));
+  center.appendChild(el('div', { class:'tagline', style:{marginTop:'48px'} }, 'A solo journaling RPG about exploring fantastic planets'));
+  const stack = el('div', { class:'btn-stack', style:{marginTop:'56px'} },
+    el('button', { class:'btn primary', onClick:startJourney }, 'Embark'),
+    el('button', { class:'btn', onClick:()=>setState({toast:false, screen:'archive'}) }, 'Archive'));
+  center.appendChild(stack);
+  screen.appendChild(center);
+  screen.appendChild(chromeEl(false));
+  return screen;
+}
+
+function renderIntro(){
+  const screen = el('div', { class:'screen with-chrome fade-in' });
+  const center = el('div', { class:'center' });
+  center.appendChild(el('div', { class:'moon' }));
+  center.appendChild(el('p', { class:'narration', style:{marginTop:'48px'} }, "You're in your ship, drifting peacefully in space…"));
+  center.appendChild(el('p', { class:'instruction' }, 'Roll your dice to look for a planet.'));
+  screen.appendChild(center);
+  const rollBtn = el('button', { class:'btn primary', disabled:state.rolling, onClick:rollDice }, state.rolling ? '…' : 'Roll');
+  screen.appendChild(el('div', { class:'btn-stack' }, rollBtn));
+  screen.appendChild(chromeEl(true));
+  return screen;
+}
+
+function renderDiceResult(){
+  const screen = el('div', { class:'screen with-chrome fade-in' });
+  const center = el('div', { class:'center' });
+  center.appendChild(dieEl(state.session.roll));
+  center.appendChild(el('p', { class:'flavor', style:{marginTop:'40px'} }, ARRIVAL_LINE[state.session.outcome]));
+  screen.appendChild(center);
+  screen.appendChild(el('div', { class:'btn-stack' }, el('button', { class:'btn primary', onClick:()=>setState({screen:'cardSelect'}) }, 'Explore')));
+  screen.appendChild(chromeEl(true));
+  return screen;
+}
+
+function renderCardSelect(){
+  const s = state.session;
+  const allDone = s.cards.every(c => c.done);
+  const remaining = s.cards.filter(c => !c.done).length;
+  const screen = el('div', { class:'screen with-chrome fade-in' });
+  const center = el('div', { class:'center', style:{justifyContent:'center', gap:'32px'} });
+  const grid = el('div', { class:'card-grid' });
+  s.cards.forEach((c,i) => grid.appendChild(cardEl(c, c.done, '', ()=>tapCard(i))));
+  center.appendChild(grid);
+
+  if(allDone){
+    center.appendChild(el('p', { class:'instruction', style:{marginTop:'4px'} }, "You're finished exploring this planet. What to do with your journal?"));
+    const stack = el('div', { class:'btn-stack', style:{marginTop:'8px'} },
+      el('button', { class:'btn primary', onClick:()=>setState({screen:'sketch'}) }, 'Keep it'),
+      el('button', { class:'btn danger', onClick:()=>setState({overlay:'burn'}) }, 'Burn it'));
+    center.appendChild(stack);
+  } else {
+    const line = remaining === s.roll
+      ? 'You land. You pick up ' + s.roll + ' ' + (s.roll===1?'point':'points') + ' of interest.'
+      : 'There ' + (remaining===1?'is':'are') + ' ' + remaining + ' ' + (remaining===1?'point':'points') + ' of interest left.';
+    center.appendChild(el('p', { class:'flavor' }, line));
+    center.appendChild(el('p', { class:'instruction' }, remaining === s.roll ? 'Pick a card to investigate.' : 'Pick another card to investigate.'));
+  }
+  screen.appendChild(center);
+  screen.appendChild(chromeEl(true));
+  return screen;
+}
+
+function renderCardReveal(){
+  const card = state.session.cards[state.activeIndex];
+  const screen = el('div', { class:'screen with-chrome fade-in' });
+  const center = el('div', { class:'center' });
+  center.appendChild(cardEl(card, true, 'reveal-card'));
+  center.appendChild(el('p', { class:'flavor', style:{marginTop:'36px'} }, seePart(card)));
+  center.appendChild(el('p', { class:'instruction' }, 'Describe it in your journal.'));
+  screen.appendChild(center);
+  screen.appendChild(el('div', { class:'btn-stack' }, el('button', { class:'btn primary', onClick:startWriting }, 'Start writing')));
+  screen.appendChild(chromeEl(true));
+  return screen;
+}
+
+function renderJournalEntry(){
+  const card = state.session.cards[state.activeIndex];
+  const screen = el('div', { class:'screen fade-in' });
+  screen.appendChild(el('div', { class:'entry-header' }, cardEl(card, true, 'thumb'), el('div', { class:'htext' }, seePart(card))));
+  const ta = el('textarea', { class:'entry-field', placeholder:'Start your entry...' });
+  ta.value = state.draftText;
+  ta.addEventListener('input', e => { state.draftText = e.target.value; });
+  screen.appendChild(ta);
+  const back = el('button', { class:'btn', onClick:()=>{
+    const original = card.body || '';
+    if(state.draftText !== original) setState({ overlay:'goback' });
+    else setState({ screen: state.editingExisting ? 'revisit' : 'cardSelect' });
+  } }, 'Go back');
+  screen.appendChild(el('div', { class:'entry-actions' }, back, el('button', { class:'btn primary', onClick:saveEntry }, 'Save')));
+  setTimeout(()=>ta.focus(), 0);
+  return screen;
+}
+
+function renderRevisit(){
+  const card = state.session.cards[state.activeIndex];
+  const screen = el('div', { class:'screen fade-in' });
+  screen.appendChild(el('div', { class:'entry-header' }, cardEl(card, true, 'thumb'), el('div', { class:'htext' }, seePart(card))));
+  screen.appendChild(el('div', { class:'grow', style:{marginTop:'18px', overflowY:'auto'} }, el('p', { class:'fj-body selectable' }, card.body)));
+  screen.appendChild(el('div', { class:'entry-actions' },
+    el('button', { class:'btn', onClick:()=>setState({activeIndex:null, screen:'cardSelect'}) }, 'Go back'),
+    el('button', { class:'btn primary', onClick:startWriting }, 'Edit')));
+  return screen;
+}
+
+function renderSketch(){
+  const screen = el('div', { class:'screen with-chrome fade-in' });
+  const wrap = el('div', { class:'sketch-wrap' });
+  wrap.appendChild(el('div', { class:'sketch-head' },
+    el('p', { class:'heading' }, 'Add a sketch to the journal?')));
+  const canvas = el('canvas', {});
+  wrap.appendChild(el('div', { class:'sketch-paper' }, canvas));
+  const penBtn = el('button', { class:'tool-btn active', 'aria-label':'Pen', html:PEN_SVG });
+  const eraBtn = el('button', { class:'tool-btn', 'aria-label':'Eraser', html:ERASER_SVG });
+  const undoBtn = el('button', { class:'tool-btn', 'aria-label':'Undo', disabled:true, html:UNDO_SVG });
+  wrap.appendChild(el('div', { class:'sketch-tools' }, penBtn, eraBtn, undoBtn));
+  screen.appendChild(wrap);
+
+  // Back (to the cards) · Skip (forward, no sketch) · Add (forward, with sketch)
+  const addBtn = el('button', { class:'btn primary', disabled:true, style:{opacity:'.4'} }, 'Add');
+  screen.appendChild(el('div', { class:'entry-actions sketch-actions' },
+    el('button', { class:'btn', onClick:()=>setState({screen:'cardSelect'}) }, 'Back'),
+    el('button', { class:'btn', onClick:skipSketch }, 'Skip'),
+    addBtn));
+  screen.appendChild(chromeEl(true));
+  screen._sketch = { canvas, penBtn, eraBtn, undoBtn, addBtn };
+  return screen;
+}
+
+function initSketch(refs){
+  const { canvas, penBtn, eraBtn, undoBtn, addBtn } = refs;
+  const rect = canvas.getBoundingClientRect();
+  const dpr = window.devicePixelRatio || 1;
+  canvas.width = Math.round(rect.width * dpr);
+  canvas.height = Math.round(rect.height * dpr);
+  const ctx = canvas.getContext('2d');
+  ctx.scale(dpr, dpr);
+  ctx.lineCap = 'round'; ctx.lineJoin = 'round';
+  ctx.fillStyle = PAPER; ctx.fillRect(0, 0, rect.width, rect.height);
+
+  let tool = 'pen', drawing = false, dirty = false, last = { x:0, y:0 };
+  const history = [];
+  function strokeStyle(){ if(tool==='eraser'){ ctx.strokeStyle = PAPER; ctx.lineWidth = 18; } else { ctx.strokeStyle = '#1a1a1a'; ctx.lineWidth = 2; } }
+  function point(e){ const r = canvas.getBoundingClientRect(); return { x:e.clientX - r.left, y:e.clientY - r.top }; }
+  function down(e){
+    e.preventDefault();
+    try{ canvas.setPointerCapture(e.pointerId); }catch(_){}
+    history.push(canvas.toDataURL()); if(history.length > 40) history.shift();
+    undoBtn.disabled = false;
+    if(!dirty){ dirty = true; addBtn.disabled = false; addBtn.style.opacity = '1'; }
+    drawing = true; last = point(e);
+    strokeStyle(); ctx.beginPath(); ctx.moveTo(last.x, last.y); ctx.lineTo(last.x + 0.01, last.y); ctx.stroke();
+  }
+  function move(e){
+    if(!drawing) return; e.preventDefault();
+    const p = point(e); strokeStyle();
+    ctx.beginPath(); ctx.moveTo(last.x, last.y); ctx.lineTo(p.x, p.y); ctx.stroke(); last = p;
+  }
+  function up(){ drawing = false; }
+  canvas.addEventListener('pointerdown', down);
+  canvas.addEventListener('pointermove', move);
+  canvas.addEventListener('pointerup', up);
+  canvas.addEventListener('pointercancel', up);
+  canvas.addEventListener('pointerleave', up);
+  penBtn.addEventListener('click', () => { tool='pen'; penBtn.classList.add('active'); eraBtn.classList.remove('active'); });
+  eraBtn.addEventListener('click', () => { tool='eraser'; eraBtn.classList.add('active'); penBtn.classList.remove('active'); });
+  undoBtn.addEventListener('click', () => {
+    const prev = history.pop();
+    undoBtn.disabled = history.length === 0;
+    if(history.length === 0){ dirty = false; addBtn.disabled = true; addBtn.style.opacity = '.4'; }
+    if(!prev) return;
+    const img = new Image();
+    img.onload = () => { const r = canvas.getBoundingClientRect(); ctx.clearRect(0,0,r.width,r.height); ctx.drawImage(img, 0, 0, r.width, r.height); };
+    img.src = prev;
+  });
+  addBtn.addEventListener('click', () => { if(dirty) finishSketch(canvas.toDataURL('image/png')); });
+}
+
+function renderNamePlanet(){
+  const screen = el('div', { class:'screen with-chrome fade-in' });
+  const center = el('div', { class:'center' });
+  center.appendChild(el('p', { class:'heading', style:{marginBottom:'8px'} }, 'Give the planet a name.'));
+  center.appendChild(el('div', { class:'planet', style:{ width:'min(42vw,160px)', height:'min(42vw,160px)', background:state.session.color, marginTop:'24px' } }));
+  const input = el('input', { class:'name-field', style:{marginTop:'40px'}, placeholder:'Type here...', maxlength:NAME_LIMIT });
+  let name = '';
+  const finishBtn = el('button', { class:'btn primary', disabled:true, style:{opacity:'.4'} }, 'Finish');
+  input.addEventListener('input', e => {
+    name = e.target.value; const ok = name.trim().length > 0;
+    finishBtn.disabled = !ok; finishBtn.style.opacity = ok ? '1' : '.4';
+  });
+  finishBtn.addEventListener('click', () => { if(name.trim().length > 0) publishPlanet(name); });
+  center.appendChild(input);
+  center.appendChild(el('div', { class:'btn-stack', style:{marginTop:'44px'} },
+    finishBtn, el('button', { class:'btn', onClick:()=>setState({screen:'sketch'}) }, 'Back')));
+  screen.appendChild(center);
+  screen.appendChild(chromeEl(true));
+  return screen;
+}
+
+function renderArchive(){
+  const screen = el('div', { class:'screen with-chrome fade-in' });
+  screen.appendChild(el('div', { class:'archive-title heading' }, 'Journal archive'));
+  if(ARCHIVE.length === 0){
+    screen.appendChild(el('div', { class:'center' }, el('p', { class:'empty-archive' }, 'No journeys yet. Embark to find your first planet.')));
+  } else {
+    const grid = el('div', { class:'archive-grid' });
+    ARCHIVE.forEach(p => {
+      const mod = el('div', { class:'planet-module', onClick:()=>setState({viewId:p.id, screen:'fullJournal'}) },
+        el('div', { class:'planet', style:{ width:'min(34vw,120px)', height:'min(34vw,120px)', background:p.color } }),
+        el('div', { class:'pname' }, p.name),
+        el('div', { class:'pdate' }, fmtDate(p.createdAt)));
+      grid.appendChild(mod);
+    });
+    screen.appendChild(grid);
+  }
+  if(state.toast){
+    screen.appendChild(el('div', { class:'toast' },
+      el('span', {}, 'Journal published.'),
+      el('button', { 'aria-label':'Dismiss', onClick:()=>setState({toast:false}) }, '✕')));
+  }
+  screen.appendChild(chromeEl(true));
+  return screen;
+}
+
+function renderFullJournal(){
+  const p = ARCHIVE.find(x => x.id === state.viewId);
+  if(!p) return renderArchive();
+  const screen = el('div', { class:'screen with-chrome fade-in' });
+  screen.appendChild(el('button', { class:'close-x', 'aria-label':'Close', onClick:()=>setState({toast:false, screen:'archive'}) }, '✕'));
+  screen.appendChild(el('div', { class:'fj-header' },
+    el('div', { class:'planet', style:{ width:'96px', height:'96px', flex:'0 0 auto', background:p.color } }),
+    el('div', { class:'fj-meta' },
+      el('div', { class:'pn' }, p.name),
+      el('div', {}, ARRIVAL_VARIANT[p.outcome]),
+      el('div', {}, 'Explored ' + fmtDate(p.createdAt)),
+      el('div', {}, p.entries.length + ' ' + (p.entries.length===1?'entry':'entries')))));
+  const body = el('div', { class:'grow', style:{overflowY:'auto', paddingTop:'8px'} });
+  p.entries.forEach(e => {
+    body.appendChild(el('div', { class:'fj-entry' }, cardEl(e, true, 'thumb'), el('div', { class:'fj-body selectable' }, e.body)));
+  });
+  if(p.sketch){
+    body.appendChild(el('div', { class:'fj-entry' },
+      el('div', { class:'fj-meta', style:{fontStyle:'italic'} }, 'A sketch of what you saw.'),
+      el('img', { class:'journal-sketch', src:p.sketch, alt:'Sketch from the journey' })));
+  }
+  screen.appendChild(body);
+  screen.appendChild(el('div', { class:'btn-stack', style:{paddingTop:'24px'} },
+    el('button', { class:'btn danger', onClick:()=>setState({overlay:'burn'}) }, 'Burn journal')));
+  screen.appendChild(chromeEl(true));
+  return screen;
+}
+
+/* ---------- overlays ---------- */
+function renderOverlay(){
+  if(state.overlay === 'help'){
+    return el('div', { class:'overlay' },
+      el('button', { class:'close-x', 'aria-label':'Close', onClick:()=>setState({overlay:null}) }, '✕'),
+      el('div', { class:'help-body selectable' }, ABOUT_TEXT));
+  }
+  if(state.overlay === 'home'){
+    return el('div', { class:'overlay confirm' },
+      el('div', { class:'confirm-box' },
+        el('p', { class:'confirm-text' }, 'Going home already? All of your progress will be lost.'),
+        el('div', { class:'btn-stack' },
+          el('button', { class:'btn danger', onClick:()=>{ state.overlay=null; goTitle(); } }, 'Go home'),
+          el('button', { class:'btn primary', onClick:()=>setState({overlay:null}) }, 'Nevermind'))));
+  }
+  if(state.overlay === 'burn'){
+    const fromFull = state.screen === 'fullJournal';
+    return el('div', { class:'overlay confirm' },
+      el('div', { class:'confirm-box' },
+        el('p', { class:'confirm-text' }, 'Are you sure? It will be lost in the ether forever.'),
+        el('div', { class:'btn-stack' },
+          el('button', { class:'btn danger', onClick:()=> fromFull ? burnPlanet(state.viewId) : burnSession() }, 'Yes, burn it'),
+          el('button', { class:'btn primary', onClick:()=>setState({overlay:null}) }, 'Nevermind'))));
+  }
+  if(state.overlay === 'goback'){
+    return el('div', { class:'overlay confirm' },
+      el('div', { class:'confirm-box' },
+        el('p', { class:'confirm-text' }, 'Leave without saving? This entry will be lost.'),
+        el('div', { class:'btn-stack' },
+          el('button', { class:'btn danger', onClick:()=>setState({ overlay:null, screen: state.editingExisting ? 'revisit' : 'cardSelect' }) }, 'Leave'),
+          el('button', { class:'btn primary', onClick:()=>setState({overlay:null}) }, 'Keep writing'))));
+  }
+  return null;
+}
+
+/* ============================================================
+   RENDER
+   ============================================================ */
+function render(){
+  const root = document.getElementById('root');
+  root.innerHTML = '';
+  let node;
+  switch(state.screen){
+    case 'title':       node = renderTitle(); break;
+    case 'intro':       node = renderIntro(); break;
+    case 'diceResult':  node = renderDiceResult(); break;
+    case 'cardSelect':  node = renderCardSelect(); break;
+    case 'cardReveal':  node = renderCardReveal(); break;
+    case 'journalEntry':node = renderJournalEntry(); break;
+    case 'revisit':     node = renderRevisit(); break;
+    case 'sketch':      node = renderSketch(); break;
+    case 'namePlanet':  node = renderNamePlanet(); break;
+    case 'archive':     node = renderArchive(); break;
+    case 'fullJournal': node = renderFullJournal(); break;
+    default:            node = renderTitle();
+  }
+  root.appendChild(node);
+  const ov = renderOverlay();
+  if(ov) root.appendChild(ov);
+  if(state.screen === 'sketch' && node._sketch) initSketch(node._sketch);
+}
+
+render();
+</script>
+</body>
+</html>

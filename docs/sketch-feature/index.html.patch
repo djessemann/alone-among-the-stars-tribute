@@ -1,0 +1,241 @@
+diff --git a/index.html b/index.html
+index 47eaf96..04ed04c 100644
+--- a/index.html
++++ b/index.html
+@@ -212,6 +212,26 @@
+     color:var(--fg); white-space:pre-wrap; overflow-wrap:break-word; word-break:break-word; }
+   .help-body .selectable{ }
+ 
++  /* ---------- sketch ---------- */
++  .sketch-wrap{ flex:1; display:flex; flex-direction:column; gap:16px; min-height:0; }
++  .sketch-head{ text-align:center; align-self:center; margin-top:clamp(4px, 3vh, 26px); }
++  .sketch-paper{ position:relative; width:100%; flex:1; min-height:240px;
++    background:var(--card); border-radius:14px; box-shadow:0 0 22px rgba(245,243,238,.12);
++    overflow:hidden; touch-action:none; }
++  .sketch-paper canvas{ position:absolute; inset:0; width:100%; height:100%; display:block;
++    touch-action:none; cursor:crosshair; }
++  .sketch-tools{ display:flex; align-items:center; justify-content:center; gap:16px; }
++  .tool-btn{ width:46px; height:46px; border-radius:50%; border:1.5px solid var(--fg);
++    background:transparent; color:var(--fg); display:flex; align-items:center; justify-content:center; }
++  .tool-btn.active{ background:var(--fg); color:#000; }
++  .tool-btn:active{ transform:scale(.94); }
++  .tool-btn:disabled{ opacity:.32; }
++  .tool-btn svg{ width:21px; height:21px; }
++  .sketch-actions{ gap:10px; }
++  .sketch-actions .btn{ padding:10px 16px; }
++  .journal-sketch{ width:100%; display:block; border-radius:14px; background:var(--card);
++    box-shadow:0 0 22px rgba(245,243,238,.10); }
++
+   .fade-in{ animation:fade .25s ease; }
+   @keyframes fade{ from{opacity:0} to{opacity:1} }
+ </style>
+@@ -465,6 +485,16 @@ function App(){
+     setScreen('cardSelect');
+   }
+ 
++  // optional sketch screen, between "finished exploring" and "name the planet"
++  function finishSketch(dataURL){
++    setSession(s => ({ ...s, sketch: dataURL }));
++    setScreen('namePlanet');
++  }
++  function skipSketch(){
++    setSession(s => ({ ...s, sketch: null }));
++    setScreen('namePlanet');
++  }
++
+   function publishPlanet(name){
+     const entries = session.cards
+       .filter(c => c.done)
+@@ -477,6 +507,7 @@ function App(){
+       roll: session.roll,
+       createdAt: Date.now(),
+       entries,
++      sketch: session.sketch || null,
+     };
+     const next = [planet, ...archive];
+     setArchive(next); saveArchive(next);
+@@ -498,7 +529,7 @@ function App(){
+ 
+   /* ---------- home button behavior ---------- */
+   // gameplay screens show home → confirmation; archive/fullJournal handle their own.
+-  const gameplayScreens = ['intro','diceResult','cardSelect','cardReveal','journalEntry','revisit','namePlanet'];
++  const gameplayScreens = ['intro','diceResult','cardSelect','cardReveal','journalEntry','revisit','sketch','namePlanet'];
+   const showChrome = gameplayScreens.includes(screen) || screen==='archive' || screen==='fullJournal';
+   function onHome(){
+     if(screen==='archive' || screen==='fullJournal'){ goTitle(); }
+@@ -574,7 +605,7 @@ function App(){
+                 You're finished exploring this planet. What to do with your journal?
+               </p>
+               <div className="btn-stack" style={{marginTop:'8px'}}>
+-                <button className="btn primary" onClick={() => setScreen('namePlanet')}>Publish it</button>
++                <button className="btn primary" onClick={() => setScreen('sketch')}>Keep it</button>
+                 <button className="btn danger" onClick={() => setOverlay('burn')}>Burn it</button>
+               </div>
+             </>
+@@ -659,12 +690,24 @@ function App(){
+     );
+   }
+ 
++  function renderSketch(){
++    return (
++      <SketchScreen
++        onAdd={finishSketch}
++        onSkip={skipSketch}
++        onBack={() => setScreen('cardSelect')}
++        onHome={onHome}
++        onHelp={() => setOverlay('help')}
++      />
++    );
++  }
++
+   function renderNamePlanet(){
+     return (
+       <NamePlanet
+         color={session.color}
+         onFinish={publishPlanet}
+-        onBack={() => setScreen('cardSelect')}
++        onBack={() => setScreen('sketch')}
+         onHome={onHome}
+         onHelp={() => setOverlay('help')}
+       />
+@@ -722,6 +765,11 @@ function App(){
+               <div className="fj-body selectable">{e.body}</div>
+             </div>
+           )}
++          {p.sketch &&
++            <div className="fj-entry">
++              <div className="fj-meta" style={{fontStyle:'italic'}}>A sketch of what you saw.</div>
++              <img className="journal-sketch" src={p.sketch} alt="Sketch from the journey" />
++            </div>}
+         </div>
+         <div className="btn-stack" style={{paddingTop:'24px'}}>
+           <button className="btn danger" onClick={() => setOverlay('burn')}>Burn journal</button>
+@@ -797,6 +845,7 @@ function App(){
+     case 'cardReveal':  body = renderCardReveal(); break;
+     case 'journalEntry':body = renderJournalEntry(); break;
+     case 'revisit':     body = renderRevisit(); break;
++    case 'sketch':      body = renderSketch(); break;
+     case 'namePlanet':  body = renderNamePlanet(); break;
+     case 'archive':     body = renderArchive(); break;
+     case 'fullJournal': body = renderFullJournal(); break;
+@@ -806,6 +855,120 @@ function App(){
+   return <>{body}{renderOverlay()}</>;
+ }
+ 
++/* Optional drawing space. Kept as its own component so the canvas + tool state
++   stay isolated from app re-renders. One thin pen, an eraser, and undo. */
++const SKETCH_PAPER = '#f5f3ee';
++function SketchScreen({ onAdd, onSkip, onBack, onHome, onHelp }){
++  const canvasRef = useRef(null);
++  const ctxRef = useRef(null);
++  const drawing = useRef(false);
++  const last = useRef({ x:0, y:0 });
++  const history = useRef([]);          // canvas snapshots taken before each stroke
++  const toolRef = useRef('pen');
++  const dirtyRef = useRef(false);
++  const [tool, setTool] = useState('pen');
++  const [canUndo, setCanUndo] = useState(false);
++  const [dirty, setDirty] = useState(false);
++
++  useEffect(() => { toolRef.current = tool; }, [tool]);
++
++  // size the canvas to its box (accounting for device pixel ratio) and fill paper
++  useEffect(() => {
++    const canvas = canvasRef.current;
++    const rect = canvas.getBoundingClientRect();
++    const dpr = window.devicePixelRatio || 1;
++    canvas.width = Math.round(rect.width * dpr);
++    canvas.height = Math.round(rect.height * dpr);
++    const ctx = canvas.getContext('2d');
++    ctx.scale(dpr, dpr);
++    ctx.lineCap = 'round'; ctx.lineJoin = 'round';
++    ctx.fillStyle = SKETCH_PAPER; ctx.fillRect(0, 0, rect.width, rect.height);
++    ctxRef.current = ctx;
++  }, []);
++
++  function point(e){
++    const rect = canvasRef.current.getBoundingClientRect();
++    return { x: e.clientX - rect.left, y: e.clientY - rect.top };
++  }
++  function stroke(ctx){
++    if(toolRef.current === 'eraser'){ ctx.strokeStyle = SKETCH_PAPER; ctx.lineWidth = 18; }
++    else { ctx.strokeStyle = '#1a1a1a'; ctx.lineWidth = 2; }   // one thin pen
++  }
++  function down(e){
++    e.preventDefault();
++    canvasRef.current.setPointerCapture(e.pointerId);
++    history.current.push(canvasRef.current.toDataURL());
++    if(history.current.length > 40) history.current.shift();
++    setCanUndo(true);
++    if(!dirtyRef.current){ dirtyRef.current = true; setDirty(true); }
++    drawing.current = true;
++    const p = point(e); last.current = p;
++    const ctx = ctxRef.current; stroke(ctx);
++    ctx.beginPath(); ctx.moveTo(p.x, p.y); ctx.lineTo(p.x + 0.01, p.y); ctx.stroke();  // a tap leaves a dot
++  }
++  function move(e){
++    if(!drawing.current) return;
++    e.preventDefault();
++    const ctx = ctxRef.current; const p = point(e);
++    stroke(ctx);
++    ctx.beginPath(); ctx.moveTo(last.current.x, last.current.y); ctx.lineTo(p.x, p.y); ctx.stroke();
++    last.current = p;
++  }
++  function up(){ drawing.current = false; }
++  function undo(){
++    const prev = history.current.pop();
++    setCanUndo(history.current.length > 0);
++    if(history.current.length === 0){ dirtyRef.current = false; setDirty(false); }
++    if(!prev) return;
++    const img = new Image();
++    img.onload = () => {
++      const canvas = canvasRef.current;
++      const rect = canvas.getBoundingClientRect();
++      const ctx = ctxRef.current;
++      ctx.clearRect(0, 0, rect.width, rect.height);
++      ctx.drawImage(img, 0, 0, rect.width, rect.height);
++    };
++    img.src = prev;
++  }
++
++  const Pen = () => (
++    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.6" strokeLinejoin="round" strokeLinecap="round">
++      <path d="M4 20l4-1L19.5 7.5a2.1 2.1 0 0 0-3-3L5 16l-1 4z" /><path d="M14.5 6.5l3 3" /></svg>);
++  const Eraser = () => (
++    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.6" strokeLinejoin="round" strokeLinecap="round">
++      <path d="M8 20h11" /><path d="M4.5 15.5l5-5 6 6-3.5 3.5H8.5z" /><path d="M9.5 10.5l4-4 6 6-4 4" /></svg>);
++  const UndoIcon = () => (
++    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.6" strokeLinejoin="round" strokeLinecap="round">
++      <path d="M9 7L4 12l5 5" /><path d="M4 12h10a6 6 0 0 1 0 12h-1" /></svg>);
++
++  return (
++    <div className="screen with-chrome fade-in">
++      <div className="sketch-wrap">
++        <div className="sketch-head">
++          <p className="heading">Add a sketch to the journal?</p>
++        </div>
++        <div className="sketch-paper">
++          <canvas ref={canvasRef}
++            onPointerDown={down} onPointerMove={move} onPointerUp={up}
++            onPointerCancel={up} onPointerLeave={up} />
++        </div>
++        <div className="sketch-tools">
++          <button className={'tool-btn' + (tool==='pen' ? ' active' : '')} aria-label="Pen" onClick={() => setTool('pen')}><Pen /></button>
++          <button className={'tool-btn' + (tool==='eraser' ? ' active' : '')} aria-label="Eraser" onClick={() => setTool('eraser')}><Eraser /></button>
++          <button className="tool-btn" aria-label="Undo" disabled={!canUndo} onClick={undo}><UndoIcon /></button>
++        </div>
++      </div>
++      <div className="entry-actions sketch-actions">
++        <button className="btn" onClick={onBack}>Back</button>
++        <button className="btn" onClick={onSkip}>Skip</button>
++        <button className="btn primary" disabled={!dirty} style={{opacity: dirty ? 1 : .4}}
++          onClick={() => dirty && onAdd(canvasRef.current.toDataURL('image/png'))}>Add</button>
++      </div>
++      <Chrome onHome={onHome} onHelp={onHelp} />
++    </div>
++  );
++}
++
+ /* Name-planet kept as its own component so the input has isolated state */
+ function NamePlanet({ color, onFinish, onBack, onHome, onHelp }){
+   const [name, setName] = useState('');
