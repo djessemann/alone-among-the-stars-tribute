@@ -14,7 +14,7 @@
 <link rel="apple-touch-icon" href="icons/icon.png" />
 <link rel="preconnect" href="https://fonts.googleapis.com" />
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
-<link href="https://fonts.googleapis.com/css2?family=Space+Mono:ital,wght@0,400;0,700;1,400;1,700&display=swap" rel="stylesheet" />
+<link href="https://fonts.googleapis.com/css2?family=Press+Start+2P&family=Space+Mono:ital,wght@0,400;0,700;1,400;1,700&display=swap" rel="stylesheet" />
 <style>
   :root{
     --bg:#000;
@@ -66,7 +66,8 @@
   .grow{ flex:1; overscroll-behavior:contain; -webkit-overflow-scrolling:touch; }
 
   /* ---------- typography ---------- */
-  h1{ font-size: clamp(28px, 9vw, 42px); font-weight:700; line-height:1.05; margin:0; letter-spacing:-1px; }
+  h1{ font-family:'Press Start 2P', ui-monospace, monospace;
+      font-size: clamp(18px, 6.5vw, 26px); font-weight:400; line-height:1.4; margin:0; letter-spacing:0; }
   .byline{ color:var(--fg); font-size:13px; margin-top:14px; }
   .tagline{ color:var(--dim); font-size:13px; line-height:1.5; max-width:26ch; }
   .flavor{ font-style:italic; color:var(--dim); font-size:13.5px; line-height:1.55; max-width:28ch; }
@@ -167,6 +168,35 @@
   .moon{ position:relative; width:120px; height:120px; border-radius:50%; background:var(--card);
     box-shadow:0 0 60px rgba(245,243,238,.15); }
   .moon::after{ content:''; position:absolute; top:-12px; left:22px; width:120px; height:120px; border-radius:50%; background:#000; }
+
+  /* ---------- atmosphere: starfield (title + intro) ----------
+     Sparkles placed in outer "safe zones" only — top band, side strips,
+     and the gap above the bottom chrome — so they never overlap text or buttons. */
+  :root{
+    --star-gold: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' viewBox='-12 -12 24 24'><path d='M 0 -12 Q 1.6 -1.6 12 0 Q 1.6 1.6 0 12 Q -1.6 1.6 -12 0 Q -1.6 -1.6 0 -12 Z' fill='%23e8c98a'/></svg>");
+    --star-blue: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' viewBox='-12 -12 24 24'><path d='M 0 -12 Q 1.6 -1.6 12 0 Q 1.6 1.6 0 12 Q -1.6 1.6 -12 0 Q -1.6 -1.6 0 -12 Z' fill='%23a8c2eb'/></svg>");
+  }
+  .sky{
+    position:fixed; inset:0; pointer-events:none; z-index:0;
+    background-color:transparent;
+    background-repeat:no-repeat;
+    background-image:
+      var(--star-gold), var(--star-gold), var(--star-gold), var(--star-gold), var(--star-gold),
+      var(--star-gold), var(--star-gold), var(--star-gold), var(--star-gold), var(--star-gold), var(--star-gold),
+      var(--star-blue), var(--star-blue), var(--star-blue), var(--star-blue), var(--star-blue), var(--star-blue),
+      var(--star-blue), var(--star-blue), var(--star-blue), var(--star-blue);
+    background-position:
+      25% 6%, 65% 5%, 5% 28%, 95% 30%, 55% 85%,
+      12% 9%, 45% 12%, 80% 8%, 4% 50%, 96% 52%, 75% 83%,
+      35% 4%, 88% 16%, 6% 70%, 94% 72%, 30% 86%, 18% 13%,
+      50% 15%, 92% 4%, 8% 42%, 96% 78%;
+    background-size:
+      13px 13px, 12px 12px, 14px 14px, 11px 11px, 13px 13px,
+      9px 9px, 9px 9px, 8px 8px, 9px 9px, 8px 8px, 9px 9px,
+      7px 7px, 7px 7px, 7px 7px, 7px 7px, 7px 7px, 7px 7px,
+      5px 5px, 5px 5px, 5px 5px, 5px 5px;
+    filter: drop-shadow(0 0 2px rgba(232, 201, 138, .35));
+  }
 
   /* ---------- journal entry ---------- */
   .entry-header{ display:flex; gap:14px; align-items:flex-start; padding-top:8px; }
@@ -596,6 +626,7 @@ function App(){
   function renderTitle(){
     return (
       <div className="screen fade-in">
+        <div className="sky" />
         <div className="center" style={{gap:0}}>
           <h1>Alone<br/>Among<br/>the Stars</h1>
           <div className="byline">By Takuma Okada</div>
@@ -613,15 +644,16 @@ function App(){
   function renderIntro(){
     return (
       <div className="screen with-chrome fade-in">
+        <div className="sky" />
         <div className="center">
           <div className="moon" />
           <p className="narration" style={{marginTop:'48px'}}>You're in your ship, drifting peacefully in space…</p>
           <p className="instruction">Roll your dice to look for a planet.</p>
-        </div>
-        <div className="btn-stack">
-          <button className="btn primary" disabled={rolling} onClick={rollDice}>
-            {rolling ? '…' : 'Roll'}
-          </button>
+          <div className="btn-stack" style={{marginTop:'40px'}}>
+            <button className="btn primary" disabled={rolling} onClick={rollDice}>
+              {rolling ? '…' : 'Roll'}
+            </button>
+          </div>
         </div>
         <Chrome onHome={onHome} onHelp={() => setOverlay('help')} />
       </div>
