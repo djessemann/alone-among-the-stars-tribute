@@ -574,8 +574,11 @@ function App(){
     setOverlay(null); setScreen('title');
   }
 
-  // first roll — only sets how many points of interest the planet holds
+  // first roll — only sets how many points of interest the planet holds.
+  // jumps straight to the result screen and shakes the die there (same as the
+  // card roll) before the final number settles in.
   function rollDice(){
+    setScreen('diceResult');
     setRolling(true);
     const spin = setInterval(() => setDieFace(1 + Math.floor(Math.random()*6)), 90);
     setTimeout(() => {
@@ -589,7 +592,6 @@ function App(){
         salt: Math.floor(Math.random() * 99999),  // fixes planet node placement
         cards: deal(roll),
       });
-      setScreen('diceResult');
     }, 850);
   }
 
@@ -726,9 +728,7 @@ function App(){
           <p className="narration" style={{marginTop:'48px'}}>You're in your ship, drifting peacefully in space…</p>
           <p className="instruction">Roll your dice to look for a planet.</p>
           <div className="btn-stack" style={{marginTop:'40px'}}>
-            <button className="btn primary" disabled={rolling} onClick={rollDice}>
-              {rolling ? '…' : 'Roll'}
-            </button>
+            <button className="btn primary" onClick={rollDice}>Roll</button>
           </div>
         </div>
         <Chrome onHome={onHome} onHelp={() => setOverlay('help')} />
@@ -737,16 +737,19 @@ function App(){
   }
 
   function renderDiceResult(){
+    const settled = !rolling && session;
     return (
       <div className="screen with-chrome fade-in">
         <div className="center">
-          <Die value={session.roll} />
-          <p className="flavor" style={{marginTop:'40px'}}>
-            You spot a planet. Ship sensors show {session.roll} {session.roll===1?'point':'points'} of interest.
-          </p>
-          <div className="btn-stack" style={{marginTop:'24px'}}>
-            <button className="btn primary" onClick={() => setScreen('cardSelect')}>Explore</button>
-          </div>
+          <Die value={settled ? session.roll : dieFace} rolling={rolling} />
+          {settled &&
+            <p className="flavor" style={{marginTop:'40px'}}>
+              You spot a planet. Ship sensors show {session.roll} {session.roll===1?'point':'points'} of interest.
+            </p>}
+          {settled &&
+            <div className="btn-stack" style={{marginTop:'24px'}}>
+              <button className="btn primary" onClick={() => setScreen('cardSelect')}>Explore</button>
+            </div>}
         </div>
         <Chrome onHome={onHome} onHelp={() => setOverlay('help')} />
       </div>
