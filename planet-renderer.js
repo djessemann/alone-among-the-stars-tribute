@@ -133,9 +133,13 @@ function renderPlanet(canvas, planet){
   base.addColorStop(1, `hsl(${baseHue},38%,${Math.max(3, AES.dark-5)}%)`);
   ctx.fillStyle = base; ctx.fillRect(cx-R, cy-R, 2*R, 2*R);
 
-  // nodes (blurred blobs, blended). blur scales with resolution so a thumbnail
-  // and a large export look identical, not differently-soft.
-  const blurPx = AES.blur * (S/1024);
+  // nodes (soft blended blobs). The softness is baked into a wide, gaussian-like
+  // radial-gradient falloff instead of ctx.filter='blur()' — canvas filters are
+  // ignored on some browsers (notably older iOS Safari), which made nodes render
+  // hard-edged there. Pure gradients render identically everywhere. AES.blur is
+  // the softness reach in px (at the 1024 reference), so a thumbnail and a large
+  // export look identically soft.
+  const soft = AES.blur * (S/1024);
   ctx.globalCompositeOperation = AES.blend;
   entries.forEach((e, i) => {
     const c = colors[i];
@@ -145,17 +149,19 @@ function renderPlanet(canvas, planet){
     const blobs = 2 + Math.floor(rng()*2);
     const op = Math.min(1, (AES.opacity/100) * c.intensity);  // rank drives strength
     for (let b = 0; b < blobs; b++){
-      ctx.save();
-      ctx.filter = `blur(${blurPx}px)`;
       const jx = nx + (rng()-0.5)*baseR*0.8, jy = ny + (rng()-0.5)*baseR*0.8;
-      const rr = baseR * (0.6 + rng()*0.6);
+      // grow the blob by the softness reach so the gradient spreads like a blur
+      const rr = baseR * (0.6 + rng()*0.6) + soft * 1.6;
       const h = c.hue + (rng()-0.5)*16;
       const g = ctx.createRadialGradient(jx, jy, 0, jx, jy, rr);
-      g.addColorStop(0,   `hsla(${h},${c.sat}%,${c.light}%,${op})`);
-      g.addColorStop(0.6, `hsla(${h},${c.sat}%,${c.light}%,${op/2})`);
-      g.addColorStop(1,   `hsla(${h},${c.sat}%,${c.light}%,0)`);
+      // gaussian-ish stops → soft core fading smoothly to nothing, no hard ring
+      g.addColorStop(0.00, `hsla(${h},${c.sat}%,${c.light}%,${op})`);
+      g.addColorStop(0.18, `hsla(${h},${c.sat}%,${c.light}%,${op*0.80})`);
+      g.addColorStop(0.40, `hsla(${h},${c.sat}%,${c.light}%,${op*0.45})`);
+      g.addColorStop(0.65, `hsla(${h},${c.sat}%,${c.light}%,${op*0.18})`);
+      g.addColorStop(0.85, `hsla(${h},${c.sat}%,${c.light}%,${op*0.05})`);
+      g.addColorStop(1.00, `hsla(${h},${c.sat}%,${c.light}%,0)`);
       ctx.fillStyle = g; ctx.beginPath(); ctx.arc(jx, jy, rr, 0, 7); ctx.fill();
-      ctx.restore();
     }
   });
   ctx.globalCompositeOperation = 'source-over';
