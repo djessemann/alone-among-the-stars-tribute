@@ -163,6 +163,9 @@
 
   /* ---------- planet visual ---------- */
   .planet{ border-radius:50%; box-shadow:0 0 40px rgba(255,255,255,.06); }
+  /* Rendered planet canvas — the renderer paints its own sphere, halo and
+     transparent background, so no border-radius/shadow here. */
+  .planet-canvas{ display:block; }
 
   /* crescent moon (intro) */
   .moon{ position:relative; width:120px; height:120px; border-radius:50%; background:var(--card);
@@ -289,8 +292,12 @@
 <script crossorigin src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js"></script>
 <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
 
+<!-- Planet image generator. Loaded as a module so it runs (and sets
+     window.PlanetRenderer) before Babel compiles the app below on DOMContentLoaded. -->
+<script type="module" src="planet-renderer.js"></script>
+
 <script type="text/babel" data-presets="react">
-const { useState, useEffect, useRef } = React;
+const { useState, useEffect, useRef, useMemo } = React;
 
 /* ============================================================
    CONTENT / BUILDING BLOCKS  (mirrors content/copy.md)
@@ -407,6 +414,30 @@ function randomPlanetColor(){
   const light = 45 + Math.floor(Math.random() * 25);  // 45–70
   return `hsl(${hue} ${sat}% ${light}%)`;
 }
+// Map the app's card shape (suit:'diamonds'…, rank:'A'…) to the planet
+// renderer's shape (suit:'♦'…, rank:'A'…). One node per discovered card.
+function cardsToEntries(cards){
+  return (cards || []).map(c => ({
+    suit: (SUITS[c.suit] && SUITS[c.suit].glyph) || c.suit,
+    rank: c.rank,
+  }));
+}
+// The planet seed for an archived record. New records carry their own
+// `planetSeed`. For older ones (saved before this feature) we rebuild it from
+// their stored journal entries, deriving a stable salt from the record id so
+// the placement never shifts between renders.
+function stableSalt(str){
+  let h = 2166136261 >>> 0;
+  for(let i = 0; i < str.length; i++){ h ^= str.charCodeAt(i); h = Math.imul(h, 16777619); }
+  return (h >>> 0) % 99999;
+}
+function seedForRecord(p){
+  if(p.planetSeed && p.planetSeed.entries) return p.planetSeed;
+  return {
+    entries: cardsToEntries(p.entries || []),
+    salt: stableSalt(String(p.id || p.name || '')),
+  };
+}
 function fmtDate(ms){
   const d = new Date(ms);
   return `${d.getMonth()+1}/${d.getDate()}/${d.getFullYear()}`;
@@ -469,6 +500,29 @@ function Chrome({ onHome, onHelp }){
   );
 }
 
+/* A rendered planet. Draws onto a <canvas> via the planet renderer, sized to
+   its CSS box (retina-aware). `seed` is { entries, salt }. If the renderer is
+   somehow unavailable, falls back to a flat colored disc. */
+function Planet({ seed, size = 256, fallbackColor, style, className = 'planet-canvas' }){
+  const ref = useRef(null);
+  useEffect(() => {
+    const c = ref.current;
+    if(!c) return;
+    const cssW = c.clientWidth || size;
+    const px = Math.round(cssW * Math.min(window.devicePixelRatio || 1, 2));
+    c.width = c.height = Math.max(64, px);
+    if(window.PlanetRenderer && seed){
+      window.PlanetRenderer.renderPlanet(c, seed);
+    } else if(fallbackColor){
+      const ctx = c.getContext('2d'), S = c.width;
+      ctx.clearRect(0, 0, S, S);
+      ctx.fillStyle = fallbackColor;
+      ctx.beginPath(); ctx.arc(S/2, S/2, S*0.42, 0, 7); ctx.fill();
+    }
+  }, [seed, fallbackColor, size]);
+  return <canvas ref={ref} className={className} style={style} />;
+}
+
 /* ============================================================
    APP
    ============================================================ */
@@ -495,6 +549,21 @@ function App(){
   const allDone = session && session.cards.every(c => c.done);
   const remaining = session ? session.cards.filter(c => !c.done).length : 0;
 
+  // Planet seeds. The live session's seed (for the name screen) and a stable
+  // map of seeds for archived records, so canvases don't re-derive on every
+  // render. Placement is fixed by the saved salt → same planet everywhere.
+  const sessionSeed = useMemo(
+    () => session
+      ? { entries: cardsToEntries(session.cards.filter(c => c.done)), salt: session.salt }
+      : null,
+    [session]
+  );
+  const archiveSeeds = useMemo(() => {
+    const m = {};
+    for(const p of archive) m[p.id] = seedForRecord(p);
+    return m;
+  }, [archive]);
+
   /* ---------- navigation helpers ---------- */
   function startJourney(){
     setSession(null);
@@ -517,6 +586,7 @@ function App(){
       setSession({
         roll,
         color: randomPlanetColor(),
+        salt: Math.floor(Math.random() * 99999),  // fixes planet node placement
         cards: deal(roll),
       });
       setScreen('diceResult');
@@ -591,6 +661,12 @@ function App(){
       roll: session.roll,
       createdAt: Date.now(),
       entries,
+      // The planet image seed: one node per discovered card, placement fixed by
+      // the session salt so the archive shows the same planet as the name screen.
+      planetSeed: {
+        entries: cardsToEntries(session.cards.filter(c => c.done)),
+        salt: session.salt,
+      },
       sketch: session.sketch || null,
     };
     const next = [planet, ...archive];
@@ -805,6 +881,7 @@ function App(){
   function renderNamePlanet(){
     return (
       <NamePlanet
+        seed={sessionSeed}
         color={session.color}
         onFinish={publishPlanet}
         onBack={() => setScreen('sketch')}
@@ -826,7 +903,8 @@ function App(){
           <div className="archive-grid">
             {archive.map(p =>
               <div key={p.id} className="planet-module" onClick={() => { setViewId(p.id); setScreen('fullJournal'); }}>
-                <div className="planet" style={{ width:'min(34vw,120px)', height:'min(34vw,120px)', background:p.color }} />
+                <Planet seed={archiveSeeds[p.id]} fallbackColor={p.color} size={240}
+                  style={{ width:'min(34vw,120px)', height:'min(34vw,120px)' }} />
                 <div className="pname">{p.name}</div>
                 <div className="pdate">{fmtDate(p.createdAt)}</div>
               </div>
@@ -850,7 +928,8 @@ function App(){
       <div className="screen fade-in">
         <button className="close-x" aria-label="Close" onClick={() => { setToast(false); setScreen('archive'); }}>✕</button>
         <div className="fj-header">
-          <div className="planet" style={{ width:96, height:96, flex:'0 0 auto', background:p.color }} />
+          <Planet seed={seedForRecord(p)} fallbackColor={p.color} size={256}
+            style={{ width:96, height:96, flex:'0 0 auto' }} />
           <div className="fj-meta">
             <div className="pn">{p.name}</div>
             <div>Explored {fmtDate(p.createdAt)}</div>
@@ -1071,14 +1150,15 @@ function SketchScreen({ onAdd, onSkip, onBack, onHome, onHelp }){
 }
 
 /* Name-planet kept as its own component so the input has isolated state */
-function NamePlanet({ color, onFinish, onBack, onHome, onHelp }){
+function NamePlanet({ seed, color, onFinish, onBack, onHome, onHelp }){
   const [name, setName] = useState('');
   const valid = name.trim().length > 0;
   return (
     <div className="screen with-chrome fade-in">
       <div className="center">
         <p className="heading" style={{marginBottom:'8px'}}>Give the planet a name.</p>
-        <div className="planet" style={{ width:'min(42vw,160px)', height:'min(42vw,160px)', background:color, marginTop:'24px' }} />
+        <Planet seed={seed} fallbackColor={color} size={320}
+          style={{ width:'min(42vw,160px)', height:'min(42vw,160px)', marginTop:'24px' }} />
         <input
           className="name-field"
           style={{marginTop:'40px'}}
