@@ -43,7 +43,7 @@ const RANKS = ['A','2','3','4','5','6','7','8','9','10','J','Q','K']; // value =
 // runtime. (If you ever retune, change them here and every planet re-renders to
 // match, because nothing stores pixels — only seeds.)
 const AES = Object.freeze({
-  blur:    52,        // node softness (px at 1024 reference; scaled by size)
+  blur:    64,        // node softness (px at 1024 reference; scaled by size)
   scale:   100,       // node size (%)
   opacity: 90,        // node glow ceiling (%)
   spread:  64,        // how far nodes drift from center (%)
