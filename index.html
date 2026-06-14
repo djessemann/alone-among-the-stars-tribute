@@ -29,11 +29,18 @@
     --pad: max(20px, env(safe-area-inset-left)) ;
     --safe-top: env(safe-area-inset-top);
     --safe-bottom: env(safe-area-inset-bottom);
+    /* content column width + its side padding, shared by the screen and the
+       bottom chrome so they always line up across phone / iPad / desktop */
+    --col: 560px;
+    --gutter: 24px;
+    /* home/help circles grow a touch on roomier screens, capped so they never
+       balloon on tablet/desktop */
+    --chrome-size: clamp(44px, 11.5vw, 52px);
     font-size:16px;
   }
   *{ box-sizing:border-box; -webkit-tap-highlight-color:transparent; }
   /* Lock the document: the page can't drag-scroll or rubber-band (native-app feel). */
-  html,body{ margin:0; width:100%; height:100%; background:var(--bg); overflow:hidden; position:fixed; }
+  html,body{ margin:0; width:100%; height:100%; height:100dvh; background:var(--bg); overflow:hidden; position:fixed; }
   body{
     font-family:'Space Mono', ui-monospace, 'SF Mono', Menlo, Consolas, monospace;
     color:var(--fg);
@@ -43,7 +50,7 @@
   /* #root is the single scroll surface. Screens that fit feel pinned in place;
      only longer content (text fields, journals, the archive) scrolls — and
      overscroll-behavior:contain keeps that scroll from chaining to the page. */
-  #root{ height:100%; overflow-y:auto; -webkit-overflow-scrolling:touch; overscroll-behavior:contain; }
+  #root{ height:100%; height:100dvh; overflow-y:auto; -webkit-overflow-scrolling:touch; overscroll-behavior:contain; }
   button{ font-family:inherit; cursor:pointer; }
   /* prevent text selection on UI, allow in writing fields */
   body{ -webkit-user-select:none; user-select:none; }
@@ -55,13 +62,13 @@
     min-height:100%;
     display:flex;
     flex-direction:column;
-    padding: calc(var(--safe-top) + 20px) 24px calc(var(--safe-bottom) + 20px);
-    max-width:560px;
+    padding: calc(var(--safe-top) + 20px) var(--gutter) calc(var(--safe-bottom) + 20px);
+    max-width:var(--col);
     margin:0 auto;
     width:100%;
   }
   /* reserve a band at the bottom so nothing sits under the fixed home/help chrome */
-  .screen.with-chrome{ padding-bottom: calc(var(--safe-bottom) + 94px); }
+  .screen.with-chrome{ padding-bottom: calc(var(--safe-bottom) + var(--chrome-size) + 42px); }
   .center{ flex:1; display:flex; flex-direction:column; align-items:center; justify-content:center; gap:8px; text-align:center; }
   .grow{ flex:1; overscroll-behavior:contain; -webkit-overflow-scrolling:touch; }
 
@@ -88,14 +95,26 @@
   .btn.danger.solid{ background:transparent; }
   .btn-stack{ display:flex; flex-direction:column; align-items:center; gap:14px; }
 
-  /* ---------- persistent chrome ---------- */
-  .chrome{ position:fixed; bottom: calc(var(--safe-bottom) + 18px); width:46px; height:46px; border-radius:50%;
-    border:1.5px solid var(--fg); background:#000; display:flex; align-items:center; justify-content:center;
-    color:var(--fg); z-index:40; }
+  /* ---------- persistent chrome ----------
+     A bottom bar pinned to the safe-area bottom. It mirrors the content column
+     (same max-width + side gutters as .screen), so on phones the buttons hug the
+     screen edges and on iPad/desktop they line up with the centered content
+     instead of drifting out to the far corners. The bar itself ignores pointer
+     events; only the circles catch taps, leaving the middle clickable. */
+  .chrome-bar{
+    position:fixed; left:50%; transform:translateX(-50%); bottom:0;
+    width:100%; max-width:var(--col);
+    display:flex; align-items:center; justify-content:space-between;
+    padding:0 var(--gutter) calc(var(--safe-bottom) + 18px);
+    z-index:40; pointer-events:none;
+  }
+  .chrome, .chrome-spacer{ width:var(--chrome-size); height:var(--chrome-size); flex:0 0 auto; }
+  .chrome{ border-radius:50%; border:1.5px solid var(--fg); background:#000;
+    display:flex; align-items:center; justify-content:center; color:var(--fg);
+    pointer-events:auto; transition:transform .08s ease; }
   .chrome:active{ transform:scale(.94); }
-  .chrome.home{ left:24px; }
-  .chrome.help{ right:24px; font-size:16px; }
-  .chrome svg{ width:20px; height:20px; }
+  .chrome.help{ font-size:16px; }
+  .chrome svg{ width:43%; height:43%; }
 
   /* ---------- dice ---------- */
   .die{ width:128px; height:128px; border-radius:24px; background:var(--card); display:grid;
@@ -487,16 +506,21 @@ function Die({ value, rolling, variant='' }){
 }
 
 function Chrome({ onHome, onHelp }){
+  // Always render both slots so the bar's space-between keeps Home pinned left
+  // and Help pinned right even when only one of them is present.
   return (
-    <>
-      {onHome &&
-        <button className="chrome home" aria-label="Home" onClick={onHome}>
-          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.6" strokeLinejoin="round" strokeLinecap="round">
-            <path d="M3 11.5 12 4l9 7.5" /><path d="M5 10.5V20h14v-9.5" />
-          </svg>
-        </button>}
-      {onHelp && <button className="chrome help" aria-label="Help" onClick={onHelp}>?</button>}
-    </>
+    <div className="chrome-bar">
+      {onHome
+        ? <button className="chrome home" aria-label="Home" onClick={onHome}>
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.6" strokeLinejoin="round" strokeLinecap="round">
+              <path d="M3 11.5 12 4l9 7.5" /><path d="M5 10.5V20h14v-9.5" />
+            </svg>
+          </button>
+        : <span className="chrome-spacer" aria-hidden="true" />}
+      {onHelp
+        ? <button className="chrome help" aria-label="Help" onClick={onHelp}>?</button>
+        : <span className="chrome-spacer" aria-hidden="true" />}
+    </div>
   );
 }
 
