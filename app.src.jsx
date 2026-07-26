@@ -162,44 +162,67 @@ function saveArchive(arr){
    so they stay sharp at every size (CSS scales them per card variant). */
 const PIXEL_SPRITES = {
   hearts: [
-    '.##..##.',
-    '########',
-    '########',
-    '########',
-    '.######.',
-    '..####..',
-    '...##...',
-    '........',
+    '.#####..#####.',
+    '##############',
+    '##############',
+    '##############',
+    '##############',
+    '.############.',
+    '..##########..',
+    '...########...',
+    '....######....',
+    '.....####.....',
+    '......##......',
   ],
   diamonds: [
-    '...##...',
-    '..####..',
-    '.######.',
-    '########',
-    '########',
-    '.######.',
-    '..####..',
-    '...##...',
+    '......##......',
+    '.....####.....',
+    '....######....',
+    '...########...',
+    '..##########..',
+    '.############.',
+    '##############',
+    '##############',
+    '.############.',
+    '..##########..',
+    '...########...',
+    '....######....',
+    '.....####.....',
+    '......##......',
   ],
   spades: [
-    '...##...',
-    '..####..',
-    '.######.',
-    '########',
-    '########',
-    '##.##.##',
-    '...##...',
-    '..####..',
+    '.....##.....',
+    '.....##.....',
+    '....####....',
+    '...######...',
+    '..########..',
+    '..########..',
+    '.##########.',
+    '############',
+    '############',
+    '############',
+    '.###.##.###.',
+    '.....##.....',
+    '.....##.....',
+    '....####....',
+    '...######...',
   ],
   clubs: [
-    '..####..',
-    '.######.',
-    '########',
-    '########',
-    '##.##.##',
-    '...##...',
-    '..####..',
-    '........',
+    '.....####.....',
+    '....######....',
+    '....######....',
+    '....######....',
+    '....######....',
+    '.....####.....',
+    '.####.##.####.',
+    '##############',
+    '##############',
+    '##############',
+    '.####.##.####.',
+    '......##......',
+    '......##......',
+    '.....####.....',
+    '....######....',
   ],
   star: [
     '...#...',
@@ -222,7 +245,10 @@ const PIXEL_SPRITES = {
   ],
 };
 
-function PixelGlyph({ name }){
+/* px = size of one sprite cell in CSS pixels. When given, the svg gets
+   explicit dimensions so differently-proportioned sprites share one cell
+   scale (uniform pixel density). Without it, CSS controls the size. */
+function PixelGlyph({ name, px }){
   const map = PIXEL_SPRITES[name];
   const w = map[0].length, h = map.length;
   const rects = [];
@@ -231,7 +257,8 @@ function PixelGlyph({ name }){
       if(row[x] === '#') rects.push(<rect key={`${x}-${y}`} x={x} y={y} width="1" height="1" />);
   });
   return (
-    <svg viewBox={`0 0 ${w} ${h}`} shapeRendering="crispEdges" fill="currentColor" aria-hidden="true">
+    <svg viewBox={`0 0 ${w} ${h}`} width={px ? w*px : undefined} height={px ? h*px : undefined}
+      shapeRendering="crispEdges" fill="currentColor" aria-hidden="true">
       {rects}
     </svg>
   );
@@ -294,11 +321,16 @@ function Card({ card, faceUp, variant='', selected=false, onClick }){
   if(faceUp){
     const s = SUITS[card.suit];
     cls.push('face'); if(s.red) cls.push('red');
+    // one shared cell scale per context so all four suits render at the same
+    // pixel density despite different sprite proportions
+    const isReveal = variant === 'reveal-card', isThumb = variant === 'thumb';
+    const centerPx = isReveal ? 6.5 : isThumb ? 1.6 : 3.4;
+    const cornerPx = isReveal ? 1.6 : 1.0;
     return (
       <div className={cls.join(' ')} onClick={onClick}>
-        <span className="corner tl"><span className="r">{card.rank}</span><PixelGlyph name={card.suit} /></span>
-        <span className="center-glyph"><PixelGlyph name={card.suit} /></span>
-        <span className="corner br"><span className="r">{card.rank}</span><PixelGlyph name={card.suit} /></span>
+        {!isThumb && <span className="corner tl"><span className="r">{card.rank}</span><PixelGlyph name={card.suit} px={cornerPx} /></span>}
+        <span className="center-glyph"><PixelGlyph name={card.suit} px={centerPx} /></span>
+        {!isThumb && <span className="corner br"><span className="r">{card.rank}</span><PixelGlyph name={card.suit} px={cornerPx} /></span>}
       </div>
     );
   }
@@ -578,7 +610,7 @@ function App(){
     const settled = !rolling && session;
     return (
       <div className="screen with-chrome fade-in">
-        <div className="center">
+        <div className="center anchored">
           <Die value={settled ? session.roll : dieFace} rolling={rolling} />
           {settled &&
             <p className="flavor" style={{marginTop:'40px'}}>
@@ -640,7 +672,7 @@ function App(){
     const settled = !rolling && !!card.roll;
     return (
       <div className="screen with-chrome fade-in">
-        <div className="center">
+        <div className="center anchored">
           <div className="reveal-row">
             <Die value={settled ? card.roll : dieFace} rolling={rolling} variant="mid" />
             {settled

@@ -1,7 +1,7 @@
 /* Alone Among the Stars — service worker.
    App shell is precached; cross-origin CDN + font assets are cached at runtime,
    so after the first online visit the app works fully offline. */
-const VERSION = 'aats-v20';
+const VERSION = 'aats-v21';
 const SHELL = [
   './',
   './index.html',
