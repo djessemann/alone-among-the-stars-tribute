@@ -158,12 +158,13 @@
     transition:transform .12s ease;
   }
   .card:active{ transform:scale(.95); }
-  /* face down: checkerboard dither, dim pixel border, pixel star */
+  /* face down: dark-maroon checkerboard dither, brick pixel border, pixel star —
+     kept a notch lighter than the black screen so the backs read as objects */
   .card.back{
-    background: repeating-conic-gradient(#1c1c1c 0% 25%, #0c0c0c 0% 50%) 0 0 / 8px 8px;
-    color:var(--dimmer);
-    box-shadow: 0 -3px 0 0 #3a3a3a, 0 3px 0 0 #3a3a3a,
-                -3px 0 0 0 #3a3a3a, 3px 0 0 0 #3a3a3a;
+    background: repeating-conic-gradient(#421411 0% 25%, #2a0b09 0% 50%) 0 0 / 8px 8px;
+    color:#a4675e;
+    box-shadow: 0 -3px 0 0 #71271f, 0 3px 0 0 #71271f,
+                -3px 0 0 0 #71271f, 3px 0 0 0 #71271f;
   }
   .card.back svg{ width:28px; height:28px; display:block; }
   /* picked-but-not-yet-flipped: layered pixel rings + lift, no reveal */
@@ -199,8 +200,8 @@
                 -5px 0 0 0 var(--card), 5px 0 0 0 var(--card),
                 10px 10px 0 0 #23231f; }
   .card.reveal-card.back{
-    box-shadow: 0 -5px 0 0 #3a3a3a, 0 5px 0 0 #3a3a3a,
-                -5px 0 0 0 #3a3a3a, 5px 0 0 0 #3a3a3a; }
+    box-shadow: 0 -5px 0 0 #71271f, 0 5px 0 0 #71271f,
+                -5px 0 0 0 #71271f, 5px 0 0 0 #71271f; }
   .card.reveal-card .center-glyph svg{ width:96px; height:96px; }
   .card.reveal-card.back svg{ width:44px; height:44px; }
   .card.reveal-card .corner{ font-size:20px; }
