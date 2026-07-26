@@ -116,69 +116,111 @@
   .chrome.help{ font-size:16px; }
   .chrome svg{ width:43%; height:43%; }
 
-  /* ---------- dice ---------- */
-  .die{ width:128px; height:128px; border-radius:24px; background:var(--card); display:grid;
-    grid-template-columns:repeat(3,1fr); grid-template-rows:repeat(3,1fr); padding:18px; gap:4px; flex:0 0 auto; }
+  /* ---------- dice (8-bit) ----------
+     Pixel-notched corners come from the four offset box-shadows: each extends
+     the face color one border-unit past an edge, leaving the corner pixel
+     uncovered — the classic console "rounded" corner. Shadows are hard offsets
+     (no blur); the inset shadow is a chunky bottom-right bevel. */
+  .die{ width:128px; height:128px; background:var(--card); display:grid;
+    grid-template-columns:repeat(3,1fr); grid-template-rows:repeat(3,1fr); padding:18px; gap:4px; flex:0 0 auto;
+    box-shadow: 0 -4px 0 0 var(--card), 0 4px 0 0 var(--card),
+                -4px 0 0 0 var(--card), 4px 0 0 0 var(--card),
+                inset -6px -6px 0 0 #d9d5c9,
+                8px 8px 0 0 #23231f; }
   .die > span{ display:flex; align-items:center; justify-content:center; }
-  .pip{ display:block; width:18px; height:18px; border-radius:50%; background:#111; }
-  .die.rolling{ animation:shake .12s linear infinite; }
-  @keyframes shake{ 0%{transform:rotate(-6deg)} 50%{transform:rotate(6deg)} 100%{transform:rotate(-6deg)} }
+  .pip{ display:block; width:18px; height:18px; background:#111; }
+  .die.rolling{ animation:shake .24s steps(1,end) infinite; }
+  @keyframes shake{ 0%,100%{ transform:translate(-3px,-2px) } 25%{ transform:translate(3px,1px) }
+    50%{ transform:translate(-2px,3px) } 75%{ transform:translate(2px,-3px) } }
   /* medium die — sits beside the revealed card */
-  .die.mid{ width:96px; height:96px; border-radius:18px; padding:12px; gap:3px; }
+  .die.mid{ width:96px; height:96px; padding:12px; gap:3px;
+    box-shadow: 0 -3px 0 0 var(--card), 0 3px 0 0 var(--card),
+                -3px 0 0 0 var(--card), 3px 0 0 0 var(--card),
+                inset -5px -5px 0 0 #d9d5c9,
+                6px 6px 0 0 #23231f; }
   .die.mid .pip{ width:13px; height:13px; }
   /* thumbnail die — beside each entry's card */
-  .die.thumb{ width:48px; height:48px; border-radius:9px; padding:6px; gap:2px; }
+  .die.thumb{ width:48px; height:48px; padding:6px; gap:2px;
+    box-shadow: 0 -2px 0 0 var(--card), 0 2px 0 0 var(--card),
+                -2px 0 0 0 var(--card), 2px 0 0 0 var(--card),
+                inset -3px -3px 0 0 #d9d5c9,
+                3px 3px 0 0 #23231f; }
   .die.thumb .pip{ width:7px; height:7px; }
 
-  /* ---------- cards (typographic) ---------- */
+  /* ---------- cards (8-bit pixel) ----------
+     Same pixel-border technique as the dice. Suit marks are pixel-art SVG
+     sprites (see PIXEL_SPRITES in app.src.jsx); ranks are Press Start 2P. */
   .card-grid{ display:flex; flex-wrap:wrap; gap:16px; justify-content:center; max-width:380px; }
   .card{
-    position:relative; border-radius:12px; flex:0 0 auto;
+    position:relative; flex:0 0 auto;
     width:96px; height:140px;
     display:flex; align-items:center; justify-content:center;
     transition:transform .12s ease;
   }
   .card:active{ transform:scale(.95); }
-  /* face down */
+  /* face down: checkerboard dither, dim pixel border, pixel star */
   .card.back{
-    background:
-      repeating-linear-gradient(45deg, #1b1b1b 0 6px, #0d0d0d 6px 12px);
-    border:1.5px solid #3a3a3a;
+    background: repeating-conic-gradient(#1c1c1c 0% 25%, #0c0c0c 0% 50%) 0 0 / 8px 8px;
     color:var(--dimmer);
-    font-size:22px;
+    box-shadow: 0 -3px 0 0 #3a3a3a, 0 3px 0 0 #3a3a3a,
+                -3px 0 0 0 #3a3a3a, 3px 0 0 0 #3a3a3a;
   }
-  /* picked-but-not-yet-flipped: a bright ring + lift, no reveal */
+  .card.back svg{ width:28px; height:28px; display:block; }
+  /* picked-but-not-yet-flipped: layered pixel rings + lift, no reveal */
   .card.back.selected{
-    border-color:var(--fg); color:var(--fg);
-    box-shadow:0 0 0 2px var(--fg), 0 0 22px rgba(242,240,234,.35);
+    color:var(--fg);
     transform:translateY(-5px);
+    box-shadow: 0 -3px 0 0 var(--fg), 0 3px 0 0 var(--fg),
+                -3px 0 0 0 var(--fg), 3px 0 0 0 var(--fg),
+                0 -6px 0 0 #000, 0 6px 0 0 #000, -6px 0 0 0 #000, 6px 0 0 0 #000,
+                0 -9px 0 0 #6a675f, 0 9px 0 0 #6a675f, -9px 0 0 0 #6a675f, 9px 0 0 0 #6a675f;
   }
   .card.back.selected:active{ transform:translateY(-5px) scale(.95); }
   /* face up */
-  .card.face{ background:var(--card); color:var(--card-ink); box-shadow:0 0 22px rgba(245,243,238,.18); }
+  .card.face{
+    background:var(--card); color:var(--card-ink);
+    box-shadow: 0 -3px 0 0 var(--card), 0 3px 0 0 var(--card),
+                -3px 0 0 0 var(--card), 3px 0 0 0 var(--card),
+                7px 7px 0 0 #23231f;
+  }
   .card.face.red{ color:var(--card-red); }
-  .card .center-glyph{ font-size:44px; line-height:1; }
-  .card .corner{ position:absolute; font-size:15px; line-height:1; text-align:center; font-weight:700; }
-  .card .corner.tl{ top:8px; left:9px; }
-  .card .corner.br{ bottom:8px; right:9px; }
+  .card .center-glyph svg{ display:block; width:48px; height:48px; }
+  .card .corner{ position:absolute; line-height:1; text-align:center;
+    font-family:'Press Start 2P', ui-monospace, monospace; font-size:12px; font-weight:400; }
+  .card .corner.tl{ top:10px; left:9px; }
+  /* bottom-right index reads upside down, like a real playing card */
+  .card .corner.br{ bottom:10px; right:9px; transform:rotate(180deg); }
   .card .corner .r{ display:block; }
-  .card .corner .s{ display:block; font-size:13px; }
+  .card .corner svg{ display:block; width:14px; height:14px; margin:4px auto 0; }
 
-  .card.reveal-card{ width:188px; height:272px; animation:zoomIn .35s cubic-bezier(.2,.8,.2,1); }
-  .card.reveal-card .center-glyph{ font-size:88px; }
-  .card.reveal-card .corner{ font-size:26px; }
-  .card.reveal-card .corner .s{ font-size:22px; }
+  .card.reveal-card{ width:188px; height:272px; animation:zoomIn .35s steps(6,end); }
+  .card.reveal-card.face{
+    box-shadow: 0 -5px 0 0 var(--card), 0 5px 0 0 var(--card),
+                -5px 0 0 0 var(--card), 5px 0 0 0 var(--card),
+                10px 10px 0 0 #23231f; }
+  .card.reveal-card.back{
+    box-shadow: 0 -5px 0 0 #3a3a3a, 0 5px 0 0 #3a3a3a,
+                -5px 0 0 0 #3a3a3a, 5px 0 0 0 #3a3a3a; }
+  .card.reveal-card .center-glyph svg{ width:96px; height:96px; }
+  .card.reveal-card.back svg{ width:44px; height:44px; }
+  .card.reveal-card .corner{ font-size:20px; }
+  .card.reveal-card .corner svg{ width:24px; height:24px; margin-top:6px; }
   @keyframes zoomIn{ from{ transform:scale(.4); opacity:.2 } to{ transform:scale(1); opacity:1 } }
   /* die + card sitting together on the reveal screen */
   .reveal-row{ display:flex; align-items:center; justify-content:center; gap:18px; flex-wrap:wrap; }
 
   /* thumbnail */
-  .card.thumb{ width:46px; height:66px; border-radius:6px; }
-  .card.thumb .center-glyph{ font-size:20px; }
-  .card.thumb .corner{ font-size:8px; }
-  .card.thumb .corner.tl{ top:4px; left:4px; }
-  .card.thumb .corner.br{ bottom:4px; right:4px; }
-  .card.thumb .corner .s{ font-size:7px; }
+  .card.thumb{ width:46px; height:66px; }
+  .card.thumb.face{
+    box-shadow: 0 -2px 0 0 var(--card), 0 2px 0 0 var(--card),
+                -2px 0 0 0 var(--card), 2px 0 0 0 var(--card),
+                3px 3px 0 0 #23231f;
+  }
+  .card.thumb .center-glyph svg{ width:22px; height:22px; }
+  .card.thumb .corner{ font-size:7px; }
+  .card.thumb .corner.tl{ top:5px; left:4px; }
+  .card.thumb .corner.br{ bottom:5px; right:4px; }
+  .card.thumb .corner svg{ width:7px; height:7px; margin-top:2px; }
 
   /* ---------- planet visual ---------- */
   .planet{ border-radius:50%; box-shadow:0 0 40px rgba(255,255,255,.06); }
