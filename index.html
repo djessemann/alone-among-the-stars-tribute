@@ -234,11 +234,16 @@
   .moon{ display:block; }
 
   /* ---------- atmosphere: starfield (title + intro) ----------
-     Sparkles placed in outer "safe zones" only — top band, side strips,
-     and the gap above the bottom chrome — so they never overlap text or buttons. */
+     Pixel sparkles (crisp-edge SVG rects): big gold 4-arm stars, small gold
+     pluses, blue pluses and square dots. Placed in outer "safe zones" only —
+     top band, side strips, and the gap above the bottom chrome — so they never
+     overlap text or buttons, and the center-top area (x 25–75%, upper half)
+     stays empty so nothing crowds the intro-screen moon. No glow: hard edges. */
   :root{
-    --star-gold: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' viewBox='-12 -12 24 24'><path d='M 0 -12 Q 1.6 -1.6 12 0 Q 1.6 1.6 0 12 Q -1.6 1.6 -12 0 Q -1.6 -1.6 0 -12 Z' fill='%23e8c98a'/></svg>");
-    --star-blue: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' viewBox='-12 -12 24 24'><path d='M 0 -12 Q 1.6 -1.6 12 0 Q 1.6 1.6 0 12 Q -1.6 1.6 -12 0 Q -1.6 -1.6 0 -12 Z' fill='%23a8c2eb'/></svg>");
+    --star-gold: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 7 7' shape-rendering='crispEdges' fill='%23e8c98a'><rect x='3' y='0' width='1' height='7'/><rect x='0' y='3' width='7' height='1'/><rect x='2' y='2' width='3' height='3'/></svg>");
+    --star-gold-sm: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 5 5' shape-rendering='crispEdges' fill='%23e8c98a'><rect x='2' y='0' width='1' height='5'/><rect x='0' y='2' width='5' height='1'/></svg>");
+    --star-blue: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 3 3' shape-rendering='crispEdges' fill='%23a8c2eb'><rect x='1' y='0' width='1' height='3'/><rect x='0' y='1' width='3' height='1'/></svg>");
+    --star-blue-dot: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 1 1' shape-rendering='crispEdges' fill='%23a8c2eb'><rect width='1' height='1'/></svg>");
   }
   .sky{
     position:fixed; inset:0; pointer-events:none; z-index:0;
@@ -246,20 +251,19 @@
     background-repeat:no-repeat;
     background-image:
       var(--star-gold), var(--star-gold), var(--star-gold), var(--star-gold), var(--star-gold),
-      var(--star-gold), var(--star-gold), var(--star-gold), var(--star-gold), var(--star-gold), var(--star-gold),
+      var(--star-gold-sm), var(--star-gold-sm), var(--star-gold-sm), var(--star-gold-sm), var(--star-gold-sm), var(--star-gold-sm),
       var(--star-blue), var(--star-blue), var(--star-blue), var(--star-blue), var(--star-blue), var(--star-blue),
-      var(--star-blue), var(--star-blue), var(--star-blue), var(--star-blue);
+      var(--star-blue-dot), var(--star-blue-dot), var(--star-blue-dot), var(--star-blue-dot);
     background-position:
-      25% 6%, 65% 5%, 5% 28%, 95% 30%, 55% 85%,
-      12% 9%, 45% 12%, 80% 8%, 4% 50%, 96% 52%, 75% 83%,
-      35% 4%, 88% 16%, 6% 70%, 94% 72%, 30% 86%, 18% 13%,
-      50% 15%, 92% 4%, 8% 42%, 96% 78%;
+      18% 6%, 78% 5%, 5% 28%, 95% 30%, 55% 85%,
+      12% 9%, 14% 20%, 80% 8%, 4% 50%, 96% 52%, 75% 83%,
+      24% 4%, 88% 16%, 6% 70%, 94% 72%, 30% 86%, 18% 13%,
+      86% 24%, 92% 4%, 8% 42%, 96% 78%;
     background-size:
-      13px 13px, 12px 12px, 14px 14px, 11px 11px, 13px 13px,
-      9px 9px, 9px 9px, 8px 8px, 9px 9px, 8px 8px, 9px 9px,
-      7px 7px, 7px 7px, 7px 7px, 7px 7px, 7px 7px, 7px 7px,
-      5px 5px, 5px 5px, 5px 5px, 5px 5px;
-    filter: drop-shadow(0 0 2px rgba(232, 201, 138, .35));
+      14px 14px, 14px 14px, 14px 14px, 14px 14px, 14px 14px,
+      10px 10px, 10px 10px, 10px 10px, 10px 10px, 10px 10px, 10px 10px,
+      6px 6px, 6px 6px, 6px 6px, 6px 6px, 6px 6px, 6px 6px,
+      4px 4px, 4px 4px, 4px 4px, 4px 4px;
   }
 
   /* ---------- journal entry ---------- */
