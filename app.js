@@ -1114,8 +1114,12 @@ function App() {
 }
 
 /* Optional drawing space. Kept as its own component so the canvas + tool state
-   stay isolated from app re-renders. One thin pen, an eraser, and undo. */
+   stay isolated from app re-renders. MS-Paint-style: strokes rasterize onto a
+   fixed 96-cell-wide grid (1-cell pencil, square eraser), the canvas upscales
+   nearest-neighbor via CSS, and saved sketches store the tiny grid PNG. */
 const SKETCH_PAPER = '#f5f3ee';
+const SKETCH_GRID = 96; // cells across the paper
+const ERASER_CELLS = 7; // eraser block size, in cells
 function SketchScreen({
   onAdd,
   onSkip,
@@ -1129,7 +1133,7 @@ function SketchScreen({
   const last = useRef({
     x: 0,
     y: 0
-  });
+  }); // last CELL the pointer touched
   const history = useRef([]); // canvas snapshots taken before each stroke
   const toolRef = useRef('pen');
   const dirtyRef = useRef(false);
@@ -1140,36 +1144,63 @@ function SketchScreen({
     toolRef.current = tool;
   }, [tool]);
 
-  // size the canvas to its box (accounting for device pixel ratio) and fill paper
+  // canvas resolution = the logical cell grid; CSS scales it up pixelated
   useEffect(() => {
     const canvas = canvasRef.current;
     const rect = canvas.getBoundingClientRect();
-    const dpr = window.devicePixelRatio || 1;
-    canvas.width = Math.round(rect.width * dpr);
-    canvas.height = Math.round(rect.height * dpr);
+    canvas.width = SKETCH_GRID;
+    canvas.height = Math.max(1, Math.round(SKETCH_GRID * rect.height / rect.width));
     const ctx = canvas.getContext('2d');
-    ctx.scale(dpr, dpr);
-    ctx.lineCap = 'round';
-    ctx.lineJoin = 'round';
     ctx.fillStyle = SKETCH_PAPER;
-    ctx.fillRect(0, 0, rect.width, rect.height);
+    ctx.fillRect(0, 0, canvas.width, canvas.height);
     ctxRef.current = ctx;
   }, []);
-  function point(e) {
-    const rect = canvasRef.current.getBoundingClientRect();
+
+  // pointer position -> cell coordinates
+  function cellAt(e) {
+    const canvas = canvasRef.current;
+    const rect = canvas.getBoundingClientRect();
     return {
-      x: e.clientX - rect.left,
-      y: e.clientY - rect.top
+      x: Math.floor((e.clientX - rect.left) / rect.width * canvas.width),
+      y: Math.floor((e.clientY - rect.top) / rect.height * canvas.height)
     };
   }
-  function stroke(ctx) {
+  // stamp the tool at one cell
+  function stamp(ctx, c) {
     if (toolRef.current === 'eraser') {
-      ctx.strokeStyle = SKETCH_PAPER;
-      ctx.lineWidth = 18;
+      const o = Math.floor(ERASER_CELLS / 2);
+      ctx.fillStyle = SKETCH_PAPER;
+      ctx.fillRect(c.x - o, c.y - o, ERASER_CELLS, ERASER_CELLS);
     } else {
-      ctx.strokeStyle = '#1a1a1a';
-      ctx.lineWidth = 2;
-    } // one thin pen
+      ctx.fillStyle = '#1a1a1a';
+      ctx.fillRect(c.x, c.y, 1, 1);
+    }
+  }
+  // Bresenham between cells so fast strokes stay continuous
+  function stampLine(ctx, a, b) {
+    let x0 = a.x,
+      y0 = a.y;
+    const dx = Math.abs(b.x - x0),
+      dy = -Math.abs(b.y - y0);
+    const sx = x0 < b.x ? 1 : -1,
+      sy = y0 < b.y ? 1 : -1;
+    let err = dx + dy;
+    for (;;) {
+      stamp(ctx, {
+        x: x0,
+        y: y0
+      });
+      if (x0 === b.x && y0 === b.y) break;
+      const e2 = 2 * err;
+      if (e2 >= dy) {
+        err += dy;
+        x0 += sx;
+      }
+      if (e2 <= dx) {
+        err += dx;
+        y0 += sy;
+      }
+    }
   }
   function down(e) {
     e.preventDefault();
@@ -1182,26 +1213,17 @@ function SketchScreen({
       setDirty(true);
     }
     drawing.current = true;
-    const p = point(e);
-    last.current = p;
-    const ctx = ctxRef.current;
-    stroke(ctx);
-    ctx.beginPath();
-    ctx.moveTo(p.x, p.y);
-    ctx.lineTo(p.x + 0.01, p.y);
-    ctx.stroke(); // a tap leaves a dot
+    const c = cellAt(e);
+    last.current = c;
+    stamp(ctxRef.current, c); // a tap leaves a cell
   }
   function move(e) {
     if (!drawing.current) return;
     e.preventDefault();
-    const ctx = ctxRef.current;
-    const p = point(e);
-    stroke(ctx);
-    ctx.beginPath();
-    ctx.moveTo(last.current.x, last.current.y);
-    ctx.lineTo(p.x, p.y);
-    ctx.stroke();
-    last.current = p;
+    const c = cellAt(e);
+    if (c.x === last.current.x && c.y === last.current.y) return;
+    stampLine(ctxRef.current, last.current, c);
+    last.current = c;
   }
   function up() {
     drawing.current = false;
@@ -1217,10 +1239,9 @@ function SketchScreen({
     const img = new Image();
     img.onload = () => {
       const canvas = canvasRef.current;
-      const rect = canvas.getBoundingClientRect();
       const ctx = ctxRef.current;
-      ctx.clearRect(0, 0, rect.width, rect.height);
-      ctx.drawImage(img, 0, 0, rect.width, rect.height);
+      ctx.clearRect(0, 0, canvas.width, canvas.height);
+      ctx.drawImage(img, 0, 0);
     };
     img.src = prev;
   }
