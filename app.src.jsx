@@ -243,6 +243,62 @@ const PIXEL_SPRITES = {
     '.##..##.',
     '........',
   ],
+  /* sketch tools + help: cream line-art (the button's background shows
+     through hollow bodies), reinterpreted from reference pixel art */
+  pencil: [
+    '..........##...',
+    '.........#..#..',
+    '........#....#.',
+    '.......#.....#.',
+    '......#.....#..',
+    '.....#.....#...',
+    '....#.....#....',
+    '...#.....#.....',
+    '..#.....#......',
+    '.#.....#.......',
+    '.#....#........',
+    '.##..#.........',
+    '.####..........',
+  ],
+  eraser: [
+    '......###...',
+    '.....#...#..',
+    '....#.....#.',
+    '...#......##',
+    '..#......###',
+    '.#......####',
+    '###....####.',
+    '####..####..',
+    '#########...',
+    '.#######....',
+    '..#####.....',
+    '...###......',
+  ],
+  undo: [
+    '.....#####...',
+    '...#########.',
+    '...#########.',
+    '..###.....###',
+    '..###.....###',
+    '#######...###',
+    '######.......',
+    '.####........',
+    '..##.........',
+  ],
+  qmark: [
+    '..######..',
+    '.########.',
+    '###....###',
+    '###....###',
+    '.......###',
+    '......###.',
+    '.....###..',
+    '....###...',
+    '....###...',
+    '..........',
+    '....###...',
+    '....###...',
+  ],
 };
 
 /* px = size of one sprite cell in CSS pixels. When given, the svg gets
@@ -360,11 +416,11 @@ function Chrome({ onHome, onHelp }){
     <div className="chrome-bar">
       {onHome
         ? <button className="chrome home" aria-label="Home" onClick={onHome}>
-            <PixelGlyph name="home" />
+            <PixelGlyph name="home" px={2.4} />
           </button>
         : <span className="chrome-spacer" aria-hidden="true" />}
       {onHelp
-        ? <button className="chrome help" aria-label="Help" onClick={onHelp}>?</button>
+        ? <button className="chrome help" aria-label="Help" onClick={onHelp}><PixelGlyph name="qmark" px={1.5} /></button>
         : <span className="chrome-spacer" aria-hidden="true" />}
     </div>
   );
@@ -983,15 +1039,9 @@ function SketchScreen({ onAdd, onSkip, onBack, onHome, onHelp }){
     img.src = prev;
   }
 
-  const Pen = () => (
-    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.6" strokeLinejoin="round" strokeLinecap="round">
-      <path d="M4 20l4-1L19.5 7.5a2.1 2.1 0 0 0-3-3L5 16l-1 4z" /><path d="M14.5 6.5l3 3" /></svg>);
-  const Eraser = () => (
-    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.6" strokeLinejoin="round" strokeLinecap="round">
-      <path d="M8 20h11" /><path d="M4.5 15.5l5-5 6 6-3.5 3.5H8.5z" /><path d="M9.5 10.5l4-4 6 6-4 4" /></svg>);
-  const UndoIcon = () => (
-    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.6" strokeLinejoin="round" strokeLinecap="round">
-      <path d="M9 7L4 12l5 5" /><path d="M4 12h10a6 6 0 0 1 0 12h-1" /></svg>);
+  const Pen = () => <PixelGlyph name="pencil" px={1.7} />;
+  const Eraser = () => <PixelGlyph name="eraser" px={1.7} />;
+  const UndoIcon = () => <PixelGlyph name="undo" px={1.7} />;
 
   return (
     <div className="screen with-chrome fade-in">

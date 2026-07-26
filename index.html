@@ -116,8 +116,8 @@
     display:flex; align-items:center; justify-content:center; color:var(--fg);
     pointer-events:auto; transition:transform .08s ease; }
   .chrome:active{ transform:scale(.94); }
-  .chrome.help{ font-family:'Press Start 2P', ui-monospace, monospace; font-size:14px; }
-  .chrome svg{ width:43%; height:43%; }
+  /* chrome + tool icons are pixel sprites that carry their own dimensions */
+  .chrome svg{ display:block; }
 
   /* ---------- dice (8-bit) ----------
      Pixel-notched corners come from the four offset box-shadows: each extends
@@ -341,7 +341,7 @@
   .tool-btn.active{ background:var(--fg); color:#000; }
   .tool-btn:active{ transform:scale(.94); }
   .tool-btn:disabled{ opacity:.32; }
-  .tool-btn svg{ width:21px; height:21px; }
+  .tool-btn svg{ display:block; }
   .sketch-actions{ gap:10px; }
   .sketch-actions .btn{ padding:10px 16px; }
   .journal-sketch{ width:100%; display:block; border-radius:0; background:var(--card);

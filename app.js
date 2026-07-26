@@ -196,7 +196,13 @@ const PIXEL_SPRITES = {
   spades: ['.....##.....', '.....##.....', '....####....', '...######...', '..########..', '..########..', '.##########.', '############', '############', '############', '.###.##.###.', '.....##.....', '.....##.....', '....####....', '...######...'],
   clubs: ['.....####.....', '....######....', '....######....', '....######....', '....######....', '.....####.....', '.####.##.####.', '##############', '##############', '##############', '.####.##.####.', '......##......', '......##......', '.....####.....', '....######....'],
   star: ['...#...', '...#...', '..###..', '#######', '..###..', '...#...', '...#...'],
-  home: ['...##...', '..####..', '.######.', '########', '.######.', '.##..##.', '.##..##.', '........']
+  home: ['...##...', '..####..', '.######.', '########', '.######.', '.##..##.', '.##..##.', '........'],
+  /* sketch tools + help: cream line-art (the button's background shows
+     through hollow bodies), reinterpreted from reference pixel art */
+  pencil: ['..........##...', '.........#..#..', '........#....#.', '.......#.....#.', '......#.....#..', '.....#.....#...', '....#.....#....', '...#.....#.....', '..#.....#......', '.#.....#.......', '.#....#........', '.##..#.........', '.####..........'],
+  eraser: ['......###...', '.....#...#..', '....#.....#.', '...#......##', '..#......###', '.#......####', '###....####.', '####..####..', '#########...', '.#######....', '..#####.....', '...###......'],
+  undo: ['.....#####...', '...#########.', '...#########.', '..###.....###', '..###.....###', '#######...###', '######.......', '.####........', '..##.........'],
+  qmark: ['..######..', '.########.', '###....###', '###....###', '.......###', '......###.', '.....###..', '....###...', '....###...', '..........', '....###...', '....###...']
 };
 
 /* px = size of one sprite cell in CSS pixels. When given, the svg gets
@@ -349,7 +355,8 @@ function Chrome({
     "aria-label": "Home",
     onClick: onHome
   }, /*#__PURE__*/React.createElement(PixelGlyph, {
-    name: "home"
+    name: "home",
+    px: 2.4
   })) : /*#__PURE__*/React.createElement("span", {
     className: "chrome-spacer",
     "aria-hidden": "true"
@@ -357,7 +364,10 @@ function Chrome({
     className: "chrome help",
     "aria-label": "Help",
     onClick: onHelp
-  }, "?") : /*#__PURE__*/React.createElement("span", {
+  }, /*#__PURE__*/React.createElement(PixelGlyph, {
+    name: "qmark",
+    px: 1.5
+  })) : /*#__PURE__*/React.createElement("span", {
     className: "chrome-spacer",
     "aria-hidden": "true"
   }));
@@ -1214,44 +1224,18 @@ function SketchScreen({
     };
     img.src = prev;
   }
-  const Pen = () => /*#__PURE__*/React.createElement("svg", {
-    viewBox: "0 0 24 24",
-    fill: "none",
-    stroke: "currentColor",
-    strokeWidth: "1.6",
-    strokeLinejoin: "round",
-    strokeLinecap: "round"
-  }, /*#__PURE__*/React.createElement("path", {
-    d: "M4 20l4-1L19.5 7.5a2.1 2.1 0 0 0-3-3L5 16l-1 4z"
-  }), /*#__PURE__*/React.createElement("path", {
-    d: "M14.5 6.5l3 3"
-  }));
-  const Eraser = () => /*#__PURE__*/React.createElement("svg", {
-    viewBox: "0 0 24 24",
-    fill: "none",
-    stroke: "currentColor",
-    strokeWidth: "1.6",
-    strokeLinejoin: "round",
-    strokeLinecap: "round"
-  }, /*#__PURE__*/React.createElement("path", {
-    d: "M8 20h11"
-  }), /*#__PURE__*/React.createElement("path", {
-    d: "M4.5 15.5l5-5 6 6-3.5 3.5H8.5z"
-  }), /*#__PURE__*/React.createElement("path", {
-    d: "M9.5 10.5l4-4 6 6-4 4"
-  }));
-  const UndoIcon = () => /*#__PURE__*/React.createElement("svg", {
-    viewBox: "0 0 24 24",
-    fill: "none",
-    stroke: "currentColor",
-    strokeWidth: "1.6",
-    strokeLinejoin: "round",
-    strokeLinecap: "round"
-  }, /*#__PURE__*/React.createElement("path", {
-    d: "M9 7L4 12l5 5"
-  }), /*#__PURE__*/React.createElement("path", {
-    d: "M4 12h10a6 6 0 0 1 0 12h-1"
-  }));
+  const Pen = () => /*#__PURE__*/React.createElement(PixelGlyph, {
+    name: "pencil",
+    px: 1.7
+  });
+  const Eraser = () => /*#__PURE__*/React.createElement(PixelGlyph, {
+    name: "eraser",
+    px: 1.7
+  });
+  const UndoIcon = () => /*#__PURE__*/React.createElement(PixelGlyph, {
+    name: "undo",
+    px: 1.7
+  });
   return /*#__PURE__*/React.createElement("div", {
     className: "screen with-chrome fade-in"
   }, /*#__PURE__*/React.createElement("div", {
