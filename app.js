@@ -220,6 +220,38 @@ function PixelGlyph({
     "aria-hidden": "true"
   }, rects);
 }
+
+/* Intro-screen crescent moon: '#' = light-yellow fill, 'x' = olive outline
+   and plus-shaped crater pixels. Right-facing crescent, 28x28 grid. */
+const MOON_SPRITE = ['............................', '.........xxxxxxx............', '.......xx#####x.............', '......x######x..............', '....xx#######x..............', '....x#######x...............', '...x########x...............', '..x#####x###x...............', '..x####xxx##x...............', '.x######x###x...............', '.x##########x...............', '.x##########x...............', '.x##########x...............', '.x##########x...............', '.x###########x..............', '.x####x######x..............', '.x###xxx######x.............', '.x####x########x............', '.x##############x...........', '..x##############xxx........', '..x#################xxxxxx..', '...x######x#############x...', '....x####xxx###########x....', '....xx####x###########xx....', '......x##############x......', '.......xx##########xx.......', '.........xxxxxxxxxx.........', '............................'];
+const MOON_FILL = '#f2e88f',
+  MOON_SHADE = '#b3a659';
+function PixelMoon({
+  size = 120
+}) {
+  const rects = [];
+  MOON_SPRITE.forEach((row, y) => {
+    for (let x = 0; x < row.length; x++) {
+      if (row[x] === '.') continue;
+      rects.push(/*#__PURE__*/React.createElement("rect", {
+        key: `${x}-${y}`,
+        x: x,
+        y: y,
+        width: "1",
+        height: "1",
+        fill: row[x] === '#' ? MOON_FILL : MOON_SHADE
+      }));
+    }
+  });
+  return /*#__PURE__*/React.createElement("svg", {
+    className: "moon",
+    viewBox: `0 0 ${MOON_SPRITE[0].length} ${MOON_SPRITE.length}`,
+    width: size,
+    height: size,
+    shapeRendering: "crispEdges",
+    "aria-hidden": "true"
+  }, rects);
+}
 function Card({
   card,
   faceUp,
@@ -610,9 +642,7 @@ function App() {
       className: "sky"
     }), /*#__PURE__*/React.createElement("div", {
       className: "center"
-    }, /*#__PURE__*/React.createElement("div", {
-      className: "moon"
-    }), /*#__PURE__*/React.createElement("p", {
+    }, /*#__PURE__*/React.createElement(PixelMoon, null), /*#__PURE__*/React.createElement("p", {
       className: "narration",
       style: {
         marginTop: '48px'
