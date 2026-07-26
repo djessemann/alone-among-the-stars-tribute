@@ -210,6 +210,16 @@ const PIXEL_SPRITES = {
     '...#...',
     '...#...',
   ],
+  home: [
+    '...##...',
+    '..####..',
+    '.######.',
+    '########',
+    '.######.',
+    '.##..##.',
+    '.##..##.',
+    '........',
+  ],
 };
 
 function PixelGlyph({ name }){
@@ -318,9 +328,7 @@ function Chrome({ onHome, onHelp }){
     <div className="chrome-bar">
       {onHome
         ? <button className="chrome home" aria-label="Home" onClick={onHome}>
-            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.6" strokeLinejoin="round" strokeLinecap="round">
-              <path d="M3 11.5 12 4l9 7.5" /><path d="M5 10.5V20h14v-9.5" />
-            </svg>
+            <PixelGlyph name="home" />
           </button>
         : <span className="chrome-spacer" aria-hidden="true" />}
       {onHelp

@@ -195,7 +195,8 @@ const PIXEL_SPRITES = {
   diamonds: ['...##...', '..####..', '.######.', '########', '########', '.######.', '..####..', '...##...'],
   spades: ['...##...', '..####..', '.######.', '########', '########', '##.##.##', '...##...', '..####..'],
   clubs: ['..####..', '.######.', '########', '########', '##.##.##', '...##...', '..####..', '........'],
-  star: ['...#...', '...#...', '..###..', '#######', '..###..', '...#...', '...#...']
+  star: ['...#...', '...#...', '..###..', '#######', '..###..', '...#...', '...#...'],
+  home: ['...##...', '..####..', '.######.', '########', '.######.', '.##..##.', '.##..##.', '........']
 };
 function PixelGlyph({
   name
@@ -331,18 +332,9 @@ function Chrome({
     className: "chrome home",
     "aria-label": "Home",
     onClick: onHome
-  }, /*#__PURE__*/React.createElement("svg", {
-    viewBox: "0 0 24 24",
-    fill: "none",
-    stroke: "currentColor",
-    strokeWidth: "1.6",
-    strokeLinejoin: "round",
-    strokeLinecap: "round"
-  }, /*#__PURE__*/React.createElement("path", {
-    d: "M3 11.5 12 4l9 7.5"
-  }), /*#__PURE__*/React.createElement("path", {
-    d: "M5 10.5V20h14v-9.5"
-  }))) : /*#__PURE__*/React.createElement("span", {
+  }, /*#__PURE__*/React.createElement(PixelGlyph, {
+    name: "home"
+  })) : /*#__PURE__*/React.createElement("span", {
     className: "chrome-spacer",
     "aria-hidden": "true"
   }), onHelp ? /*#__PURE__*/React.createElement("button", {
