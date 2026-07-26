@@ -70,6 +70,9 @@
   /* reserve a band at the bottom so nothing sits under the fixed home/help chrome */
   .screen.with-chrome{ padding-bottom: calc(var(--safe-bottom) + var(--chrome-size) + 42px); }
   .center{ flex:1; display:flex; flex-direction:column; align-items:center; justify-content:center; gap:8px; text-align:center; }
+  /* roll screens: the die (or die+card) is anchored to a fixed upper position
+     so it does not jump when the result text and button appear below it */
+  .center.anchored{ justify-content:flex-start; padding-top:clamp(24px, 12vh, 110px); }
   .grow{ flex:1; overscroll-behavior:contain; -webkit-overflow-scrolling:touch; }
 
   /* ---------- typography ---------- */
@@ -185,14 +188,16 @@
                 7px 7px 0 0 #23231f;
   }
   .card.face.red{ color:var(--card-red); }
-  .card .center-glyph svg{ display:block; width:48px; height:48px; }
+  /* suit svg sizes come from the sprite markup (uniform cell scale per
+     variant); CSS only handles placement */
+  .card .center-glyph svg{ display:block; }
   .card .corner{ position:absolute; line-height:1; text-align:center;
     font-family:'Press Start 2P', ui-monospace, monospace; font-size:12px; font-weight:400; }
   .card .corner.tl{ top:10px; left:9px; }
   /* bottom-right index reads upside down, like a real playing card */
   .card .corner.br{ bottom:10px; right:9px; transform:rotate(180deg); }
   .card .corner .r{ display:block; }
-  .card .corner svg{ display:block; width:14px; height:14px; margin:4px auto 0; }
+  .card .corner svg{ display:block; margin:4px auto 0; }
 
   .card.reveal-card{ width:188px; height:272px; animation:zoomIn .35s steps(6,end); }
   .card.reveal-card.face{
@@ -202,10 +207,9 @@
   .card.reveal-card.back{
     box-shadow: 0 -5px 0 0 #71271f, 0 5px 0 0 #71271f,
                 -5px 0 0 0 #71271f, 5px 0 0 0 #71271f; }
-  .card.reveal-card .center-glyph svg{ width:96px; height:96px; }
   .card.reveal-card.back svg{ width:44px; height:44px; }
   .card.reveal-card .corner{ font-size:20px; }
-  .card.reveal-card .corner svg{ width:24px; height:24px; margin-top:6px; }
+  .card.reveal-card .corner svg{ margin-top:6px; }
   @keyframes zoomIn{ from{ transform:scale(.4); opacity:.2 } to{ transform:scale(1); opacity:1 } }
   /* die + card sitting together on the reveal screen */
   .reveal-row{ display:flex; align-items:center; justify-content:center; gap:18px; flex-wrap:wrap; }
@@ -217,11 +221,8 @@
                 -2px 0 0 0 var(--card), 2px 0 0 0 var(--card),
                 3px 3px 0 0 #23231f;
   }
-  .card.thumb .center-glyph svg{ width:22px; height:22px; }
-  .card.thumb .corner{ font-size:7px; }
-  .card.thumb .corner.tl{ top:5px; left:4px; }
-  .card.thumb .corner.br{ bottom:5px; right:4px; }
-  .card.thumb .corner svg{ width:7px; height:7px; margin-top:2px; }
+  /* journal thumbnails show only the center suit sprite, no corner indices */
+  .card.thumb .corner{ display:none; }
 
   /* ---------- planet visual ---------- */
   .planet{ border-radius:50%; box-shadow:0 0 40px rgba(255,255,255,.06); }

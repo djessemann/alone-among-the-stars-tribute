@@ -191,15 +191,20 @@ function saveArchive(arr) {
 /* 8-bit sprites: one '#' = one on-pixel, drawn as SVG rects with crispEdges
    so they stay sharp at every size (CSS scales them per card variant). */
 const PIXEL_SPRITES = {
-  hearts: ['.##..##.', '########', '########', '########', '.######.', '..####..', '...##...', '........'],
-  diamonds: ['...##...', '..####..', '.######.', '########', '########', '.######.', '..####..', '...##...'],
-  spades: ['...##...', '..####..', '.######.', '########', '########', '##.##.##', '...##...', '..####..'],
-  clubs: ['..####..', '.######.', '########', '########', '##.##.##', '...##...', '..####..', '........'],
+  hearts: ['.#####..#####.', '##############', '##############', '##############', '##############', '.############.', '..##########..', '...########...', '....######....', '.....####.....', '......##......'],
+  diamonds: ['......##......', '.....####.....', '....######....', '...########...', '..##########..', '.############.', '##############', '##############', '.############.', '..##########..', '...########...', '....######....', '.....####.....', '......##......'],
+  spades: ['.....##.....', '.....##.....', '....####....', '...######...', '..########..', '..########..', '.##########.', '############', '############', '############', '.###.##.###.', '.....##.....', '.....##.....', '....####....', '...######...'],
+  clubs: ['.....####.....', '....######....', '....######....', '....######....', '....######....', '.....####.....', '.####.##.####.', '##############', '##############', '##############', '.####.##.####.', '......##......', '......##......', '.....####.....', '....######....'],
   star: ['...#...', '...#...', '..###..', '#######', '..###..', '...#...', '...#...'],
   home: ['...##...', '..####..', '.######.', '########', '.######.', '.##..##.', '.##..##.', '........']
 };
+
+/* px = size of one sprite cell in CSS pixels. When given, the svg gets
+   explicit dimensions so differently-proportioned sprites share one cell
+   scale (uniform pixel density). Without it, CSS controls the size. */
 function PixelGlyph({
-  name
+  name,
+  px
 }) {
   const map = PIXEL_SPRITES[name];
   const w = map[0].length,
@@ -216,6 +221,8 @@ function PixelGlyph({
   });
   return /*#__PURE__*/React.createElement("svg", {
     viewBox: `0 0 ${w} ${h}`,
+    width: px ? w * px : undefined,
+    height: px ? h * px : undefined,
     shapeRendering: "crispEdges",
     fill: "currentColor",
     "aria-hidden": "true"
@@ -266,25 +273,34 @@ function Card({
     const s = SUITS[card.suit];
     cls.push('face');
     if (s.red) cls.push('red');
+    // one shared cell scale per context so all four suits render at the same
+    // pixel density despite different sprite proportions
+    const isReveal = variant === 'reveal-card',
+      isThumb = variant === 'thumb';
+    const centerPx = isReveal ? 6.5 : isThumb ? 1.6 : 3.4;
+    const cornerPx = isReveal ? 1.6 : 1.0;
     return /*#__PURE__*/React.createElement("div", {
       className: cls.join(' '),
       onClick: onClick
-    }, /*#__PURE__*/React.createElement("span", {
+    }, !isThumb && /*#__PURE__*/React.createElement("span", {
       className: "corner tl"
     }, /*#__PURE__*/React.createElement("span", {
       className: "r"
     }, card.rank), /*#__PURE__*/React.createElement(PixelGlyph, {
-      name: card.suit
+      name: card.suit,
+      px: cornerPx
     })), /*#__PURE__*/React.createElement("span", {
       className: "center-glyph"
     }, /*#__PURE__*/React.createElement(PixelGlyph, {
-      name: card.suit
-    })), /*#__PURE__*/React.createElement("span", {
+      name: card.suit,
+      px: centerPx
+    })), !isThumb && /*#__PURE__*/React.createElement("span", {
       className: "corner br"
     }, /*#__PURE__*/React.createElement("span", {
       className: "r"
     }, card.rank), /*#__PURE__*/React.createElement(PixelGlyph, {
-      name: card.suit
+      name: card.suit,
+      px: cornerPx
     })));
   }
   cls.push('back');
@@ -659,7 +675,7 @@ function App() {
     return /*#__PURE__*/React.createElement("div", {
       className: "screen with-chrome fade-in"
     }, /*#__PURE__*/React.createElement("div", {
-      className: "center"
+      className: "center anchored"
     }, /*#__PURE__*/React.createElement(Die, {
       value: settled ? session.roll : dieFace,
       rolling: rolling
@@ -741,7 +757,7 @@ function App() {
     return /*#__PURE__*/React.createElement("div", {
       className: "screen with-chrome fade-in"
     }, /*#__PURE__*/React.createElement("div", {
-      className: "center"
+      className: "center anchored"
     }, /*#__PURE__*/React.createElement("div", {
       className: "reveal-row"
     }, /*#__PURE__*/React.createElement(Die, {
