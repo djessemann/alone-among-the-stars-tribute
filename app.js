@@ -188,6 +188,38 @@ function saveArchive(arr) {
 /* ============================================================
    PRESENTATIONAL COMPONENTS
    ============================================================ */
+/* 8-bit sprites: one '#' = one on-pixel, drawn as SVG rects with crispEdges
+   so they stay sharp at every size (CSS scales them per card variant). */
+const PIXEL_SPRITES = {
+  hearts: ['.##..##.', '########', '########', '########', '.######.', '..####..', '...##...', '........'],
+  diamonds: ['...##...', '..####..', '.######.', '########', '########', '.######.', '..####..', '...##...'],
+  spades: ['...##...', '..####..', '.######.', '########', '########', '##.##.##', '...##...', '..####..'],
+  clubs: ['..####..', '.######.', '########', '########', '##.##.##', '...##...', '..####..', '........'],
+  star: ['...#...', '...#...', '..###..', '#######', '..###..', '...#...', '...#...']
+};
+function PixelGlyph({
+  name
+}) {
+  const map = PIXEL_SPRITES[name];
+  const w = map[0].length,
+    h = map.length;
+  const rects = [];
+  map.forEach((row, y) => {
+    for (let x = 0; x < w; x++) if (row[x] === '#') rects.push(/*#__PURE__*/React.createElement("rect", {
+      key: `${x}-${y}`,
+      x: x,
+      y: y,
+      width: "1",
+      height: "1"
+    }));
+  });
+  return /*#__PURE__*/React.createElement("svg", {
+    viewBox: `0 0 ${w} ${h}`,
+    shapeRendering: "crispEdges",
+    fill: "currentColor",
+    "aria-hidden": "true"
+  }, rects);
+}
 function Card({
   card,
   faceUp,
@@ -208,23 +240,27 @@ function Card({
       className: "corner tl"
     }, /*#__PURE__*/React.createElement("span", {
       className: "r"
-    }, card.rank), /*#__PURE__*/React.createElement("span", {
-      className: "s"
-    }, s.glyph)), /*#__PURE__*/React.createElement("span", {
+    }, card.rank), /*#__PURE__*/React.createElement(PixelGlyph, {
+      name: card.suit
+    })), /*#__PURE__*/React.createElement("span", {
       className: "center-glyph"
-    }, s.glyph), /*#__PURE__*/React.createElement("span", {
+    }, /*#__PURE__*/React.createElement(PixelGlyph, {
+      name: card.suit
+    })), /*#__PURE__*/React.createElement("span", {
       className: "corner br"
     }, /*#__PURE__*/React.createElement("span", {
       className: "r"
-    }, card.rank), /*#__PURE__*/React.createElement("span", {
-      className: "s"
-    }, s.glyph)));
+    }, card.rank), /*#__PURE__*/React.createElement(PixelGlyph, {
+      name: card.suit
+    })));
   }
   cls.push('back');
   return /*#__PURE__*/React.createElement("div", {
     className: cls.join(' '),
     onClick: onClick
-  }, "\u2726");
+  }, /*#__PURE__*/React.createElement(PixelGlyph, {
+    name: "star"
+  }));
 }
 function Die({
   value,
@@ -696,7 +732,9 @@ function App() {
       variant: "reveal-card"
     }) : /*#__PURE__*/React.createElement("div", {
       className: "card back reveal-card"
-    }, "\u2726")), settled && /*#__PURE__*/React.createElement("p", {
+    }, /*#__PURE__*/React.createElement(PixelGlyph, {
+      name: "star"
+    }))), settled && /*#__PURE__*/React.createElement("p", {
       className: "flavor",
       style: {
         marginTop: '36px'
@@ -1288,3 +1326,4 @@ function NamePlanet({
   }));
 }
 ReactDOM.createRoot(document.getElementById('root')).render(/*#__PURE__*/React.createElement(App, null));
+

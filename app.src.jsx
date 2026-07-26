@@ -158,6 +158,75 @@ function saveArchive(arr){
 /* ============================================================
    PRESENTATIONAL COMPONENTS
    ============================================================ */
+/* 8-bit sprites: one '#' = one on-pixel, drawn as SVG rects with crispEdges
+   so they stay sharp at every size (CSS scales them per card variant). */
+const PIXEL_SPRITES = {
+  hearts: [
+    '.##..##.',
+    '########',
+    '########',
+    '########',
+    '.######.',
+    '..####..',
+    '...##...',
+    '........',
+  ],
+  diamonds: [
+    '...##...',
+    '..####..',
+    '.######.',
+    '########',
+    '########',
+    '.######.',
+    '..####..',
+    '...##...',
+  ],
+  spades: [
+    '...##...',
+    '..####..',
+    '.######.',
+    '########',
+    '########',
+    '##.##.##',
+    '...##...',
+    '..####..',
+  ],
+  clubs: [
+    '..####..',
+    '.######.',
+    '########',
+    '########',
+    '##.##.##',
+    '...##...',
+    '..####..',
+    '........',
+  ],
+  star: [
+    '...#...',
+    '...#...',
+    '..###..',
+    '#######',
+    '..###..',
+    '...#...',
+    '...#...',
+  ],
+};
+
+function PixelGlyph({ name }){
+  const map = PIXEL_SPRITES[name];
+  const w = map[0].length, h = map.length;
+  const rects = [];
+  map.forEach((row, y) => {
+    for(let x = 0; x < w; x++)
+      if(row[x] === '#') rects.push(<rect key={`${x}-${y}`} x={x} y={y} width="1" height="1" />);
+  });
+  return (
+    <svg viewBox={`0 0 ${w} ${h}`} shapeRendering="crispEdges" fill="currentColor" aria-hidden="true">
+      {rects}
+    </svg>
+  );
+}
+
 function Card({ card, faceUp, variant='', selected=false, onClick }){
   const cls = ['card', variant];
   if(selected) cls.push('selected');
@@ -166,14 +235,14 @@ function Card({ card, faceUp, variant='', selected=false, onClick }){
     cls.push('face'); if(s.red) cls.push('red');
     return (
       <div className={cls.join(' ')} onClick={onClick}>
-        <span className="corner tl"><span className="r">{card.rank}</span><span className="s">{s.glyph}</span></span>
-        <span className="center-glyph">{s.glyph}</span>
-        <span className="corner br"><span className="r">{card.rank}</span><span className="s">{s.glyph}</span></span>
+        <span className="corner tl"><span className="r">{card.rank}</span><PixelGlyph name={card.suit} /></span>
+        <span className="center-glyph"><PixelGlyph name={card.suit} /></span>
+        <span className="corner br"><span className="r">{card.rank}</span><PixelGlyph name={card.suit} /></span>
       </div>
     );
   }
   cls.push('back');
-  return <div className={cls.join(' ')} onClick={onClick}>✦</div>;
+  return <div className={cls.join(' ')} onClick={onClick}><PixelGlyph name="star" /></div>;
 }
 
 function Die({ value, rolling, variant='' }){
@@ -517,7 +586,7 @@ function App(){
             <Die value={settled ? card.roll : dieFace} rolling={rolling} variant="mid" />
             {settled
               ? <Card card={card} faceUp variant="reveal-card" />
-              : <div className="card back reveal-card">✦</div>}
+              : <div className="card back reveal-card"><PixelGlyph name="star" /></div>}
           </div>
           {settled && <p className="flavor" style={{marginTop:'36px'}}>{seePart(card)}</p>}
           {settled && <p className="instruction">Describe it in your journal.</p>}
