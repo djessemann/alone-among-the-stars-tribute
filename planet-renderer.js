@@ -1,15 +1,14 @@
 /* =============================================================================
- * planet-renderer.js  —  Alone Among the Stars: planet image generator
+ * planet-renderer.js  —  Alone Among the Stars: 8-bit planet generator
  * -----------------------------------------------------------------------------
  * Self-contained, framework-agnostic. No dependencies, no DOM beyond the
- * <canvas> you hand it. Produces the exact same image as the design playground
- * it was lifted from — the color math, intensity curve, placement RNG and grain
- * algorithm are copied verbatim, and the aesthetic values are LOCKED as the
- * constant AES below.
+ * <canvas> you hand it. Draws a pixel-art planet: a pixel circle fully covered
+ * by flat color regions (one per journal entry), hard 3-tone shading bands
+ * with checkerboard-dithered edges, and a 1-cell atmosphere ring.
  *
  * The renderer is the source of truth. Store only the seed data per game
- * (nodeCount, entries, salt) and re-render anywhere — name screen, archive,
- * future export. Re-rendering the same data always yields the same planet.
+ * (entries, salt) and re-render anywhere — name screen, archive, export.
+ * Re-rendering the same data always yields the same planet.
  *
  *   import { renderPlanet, makePlanetSeed, planetToDataURL } from './planet-renderer.js';
  *
@@ -22,10 +21,8 @@
  * ----------------------------------------------------------------------------
  *   {
  *     entries: [ { suit: '♦'|'♣'|'♥'|'♠', rank: 'A'|'2'|...|'10'|'J'|'Q'|'K' }, ... ],
- *     salt:    <integer>            // fixes node placement; see makePlanetSeed()
+ *     salt:    <integer>            // fixes region placement; see makePlanetSeed()
  *   }
- *
- * nodeCount is simply entries.length (the starting roll → how many nodes).
  * --------------------------------------------------------------------------*/
 
 // ---- fixed vocabulary -------------------------------------------------------
@@ -35,23 +32,22 @@ const SUITS = {
   '♥': { name: 'Hearts',   hue: 320 },
   '♠': { name: 'Spades',   hue: 212 },
 };
-const SUIT_KEYS = Object.keys(SUITS);
 const RANKS = ['A','2','3','4','5','6','7','8','9','10','J','Q','K']; // value = index+1
 
 // ---- LOCKED aesthetics ------------------------------------------------------
-// These are the same for EVERY planet. Tuned in the playground; do not vary at
-// runtime. (If you ever retune, change them here and every planet re-renders to
-// match, because nothing stores pixels — only seeds.)
-const AES = Object.freeze({
-  blur:    64,        // node softness (px at 1024 reference; scaled by size)
-  scale:   100,       // node size (%)
-  opacity: 90,        // node glow ceiling (%)
-  spread:  64,        // how far nodes drift from center (%)
-  dark:    12,        // base sphere darkness
-  blend:   'screen',  // node blend mode
-  atmo:    55,        // atmosphere halo (%)
-  grain:   45,        // printed-grain amount (%)
-  shade:   60,        // spherical shading (%)
+// Same for EVERY planet ("direction B — regional worlds"). If you retune,
+// change here and every planet re-renders to match — nothing stores pixels.
+const PIX = Object.freeze({
+  grid:    40,     // cells across the canvas (the pixel resolution)
+  radius:  0.42,   // sphere radius as a fraction of the grid
+  spread:  0.64,   // how far regions drift from center (kept from old renderer)
+  huePull: 0.35,   // how far card hues are pulled toward the planet's mean hue
+  satLo:   38,     // saturation at rank A ...
+  satHi:   68,     // ... and at rank K
+  blend:   0.22,   // width of the dithered blend zone between regions
+  toneT1:  0.40,   // light-distance threshold: bright → mid band
+  toneT2:  0.66,   // light-distance threshold: mid → shadow band
+  toneW:   0.045,  // dither width at each band boundary
 });
 
 // ---- seeded RNG (xmur3 + mulberry32) ---------------------------------------
@@ -59,161 +55,101 @@ function xmur3(str){let h=1779033703^str.length;for(let i=0;i<str.length;i++){h=
 function mulberry32(a){return ()=>{a|=0;a=a+0x6D2B79F5|0;let t=Math.imul(a^a>>>15,1|a);t=t+Math.imul(t^t>>>7,61|t)^t;return ((t^t>>>14)>>>0)/4294967296;};}
 function rngFrom(str){const s=xmur3(str)();return mulberry32(s);}
 
-// ---- mapping rules ----------------------------------------------------------
-// suit  -> hue        (fixed per suit, + a tiny per-rank jitter so same-suit
-//                      nodes vary a touch)
-// rank  -> intensity  (Ace = faint, King = blazing): scales node opacity,
-//                      lightness and saturation together.
-// count -> number of nodes (entries.length)
-// salt  -> placement  (random per game, independent of suit/rank)
-function nodeColor(entry){
-  const suit = SUITS[entry.suit];
-  const rankVal = RANKS.indexOf(entry.rank) + 1;
-  const t = (rankVal - 1) / 12;                 // 0..1 intensity
-  const hue = (suit.hue + (rankVal - 7) * 2 + 360) % 360;
-  const sat = 52 + 38 * t;                       // 52..90
-  const light = 42 + 22 * t;                     // 42..64
-  const intensity = 0.68 + 0.50 * t;             // 0.68..1.18 (boosted base)
-  return { hue, sat, light, intensity };
-}
-function sizeFrac(){ return 0.30; }              // uniform node size (× AES.scale)
 function circularMeanHue(hues){
   let x = 0, y = 0;
   hues.forEach(h => { x += Math.cos(h * Math.PI/180); y += Math.sin(h * Math.PI/180); });
   return (Math.atan2(y, x) * 180/Math.PI + 360) % 360;
 }
+const hsl = (h, s, l) => `hsl(${Math.round((h+360)%360)} ${Math.round(s)}% ${Math.round(l)}%)`;
 
 /* ----------------------------------------------------------------------------
  * renderPlanet(canvas, planet)
  *   canvas : an HTMLCanvasElement (or OffscreenCanvas). Its width/height define
- *            the render resolution — set them before calling, independent of
- *            on-screen display size (use CSS to size the element on screen).
- *            Use a larger canvas for crisp exports, a smaller one for thumbs.
+ *            the output resolution; the planet is painted as a PIX.grid cell
+ *            image and upscaled with nearest-neighbor, so it is crisp at any
+ *            size (thumbnail or export) with no extra work.
  *   planet : { entries:[{suit,rank}], salt }
  *
- * Draws on a transparent background (the sphere + halo only). Drop it onto the
- * game's dark backdrop. Resolution-independent: same planet at any size.
+ * Mapping rules (unchanged from the original renderer):
+ *   suit → hue, rank → brightness/saturation/region size,
+ *   entries.length → number of regions, salt → placement.
  * --------------------------------------------------------------------------*/
 function renderPlanet(canvas, planet){
   const entries = planet.entries || [];
   const salt = planet.salt ?? 0;
-
-  const ctx = canvas.getContext('2d');
-  // Sphere radius leaves margin around the globe so the atmosphere halo can
-  // fade fully to zero before the canvas edge (no hard square cutoff).
-  const S = canvas.width, cx = S/2, cy = S/2, R = S * 0.36;
-  ctx.clearRect(0, 0, S, S);
-
+  const N = PIX.grid;
+  const cx = (N-1)/2, cy = (N-1)/2, R = N * PIX.radius;
   const rng = rngFrom('pos#' + salt);   // placement random per game (salt only)
-  const colors = entries.map(nodeColor);
-  const baseHue = circularMeanHue(colors.map(c => c.hue));
 
-  // atmosphere halo (behind globe). Outer radius (1.35·R ≈ 0.49·S) stays inside
-  // the canvas so the glow fades to zero before the edge instead of being
-  // clipped into a square. The falloff curve is sharp — bright at the rim,
-  // dropping fast — so the glow reads strong without needing to spill over.
-  if (AES.atmo > 0){
-    const a = AES.atmo/100;
-    const g = ctx.createRadialGradient(cx, cy, R*0.5, cx, cy, R*1.35);
-    g.addColorStop(0,    `hsla(${baseHue},85%,64%,${0.85*a})`);
-    g.addColorStop(0.55, `hsla(${baseHue},85%,63%,${0.62*a})`);
-    g.addColorStop(0.78, `hsla(${baseHue},80%,58%,${0.18*a})`);
-    g.addColorStop(1,    `hsla(${baseHue},78%,56%,0)`);
-    ctx.fillStyle = g; ctx.fillRect(0, 0, S, S);
-  }
-
-  ctx.save();
-  ctx.beginPath(); ctx.arc(cx, cy, R, 0, 7); ctx.clip();
-
-  // base sphere
-  const sh01 = AES.shade/100;
-  const bx = cx - R*0.28*sh01, by = cy - R*0.28*sh01;
-  const base = ctx.createRadialGradient(bx, by, R*0.1, cx, cy, R*1.05);
-  base.addColorStop(0, `hsl(${baseHue},32%,${AES.dark+6}%)`);
-  base.addColorStop(1, `hsl(${baseHue},38%,${Math.max(3, AES.dark-5)}%)`);
-  ctx.fillStyle = base; ctx.fillRect(cx-R, cy-R, 2*R, 2*R);
-
-  // nodes (soft blended blobs). The softness is baked into a wide, gaussian-like
-  // radial-gradient falloff instead of ctx.filter='blur()' — canvas filters are
-  // ignored on some browsers (notably older iOS Safari), which made nodes render
-  // hard-edged there. Pure gradients render identically everywhere. AES.blur is
-  // the softness reach in px (at the 1024 reference), so a thumbnail and a large
-  // export look identically soft.
-  const soft = AES.blur * (S/1024);
-  ctx.globalCompositeOperation = AES.blend;
-  entries.forEach((e, i) => {
-    const c = colors[i];
-    const ang = rng()*Math.PI*2, dist = Math.sqrt(rng())*R*(AES.spread/100);
-    const nx = cx + Math.cos(ang)*dist, ny = cy + Math.sin(ang)*dist;
-    const baseR = R * sizeFrac() * (AES.scale/100);
-    const blobs = 2 + Math.floor(rng()*2);
-    const op = Math.min(1, (AES.opacity/100) * c.intensity);  // rank drives strength
-    for (let b = 0; b < blobs; b++){
-      const jx = nx + (rng()-0.5)*baseR*0.8, jy = ny + (rng()-0.5)*baseR*0.8;
-      // grow the blob by the softness reach so the gradient spreads like a blur
-      const rr = baseR * (0.6 + rng()*0.6) + soft * 1.6;
-      const h = c.hue + (rng()-0.5)*16;
-      const g = ctx.createRadialGradient(jx, jy, 0, jx, jy, rr);
-      // gaussian-ish stops → soft core fading smoothly to nothing, no hard ring
-      g.addColorStop(0.00, `hsla(${h},${c.sat}%,${c.light}%,${op})`);
-      g.addColorStop(0.18, `hsla(${h},${c.sat}%,${c.light}%,${op*0.80})`);
-      g.addColorStop(0.40, `hsla(${h},${c.sat}%,${c.light}%,${op*0.45})`);
-      g.addColorStop(0.65, `hsla(${h},${c.sat}%,${c.light}%,${op*0.18})`);
-      g.addColorStop(0.85, `hsla(${h},${c.sat}%,${c.light}%,${op*0.05})`);
-      g.addColorStop(1.00, `hsla(${h},${c.sat}%,${c.light}%,0)`);
-      ctx.fillStyle = g; ctx.beginPath(); ctx.arc(jx, jy, rr, 0, 7); ctx.fill();
-    }
+  // one color region per entry: suit → hue, rank → strength/size/brightness
+  const raw = entries.map(e => {
+    const rankVal = RANKS.indexOf(e.rank) + 1;
+    const t = (rankVal - 1) / 12;                       // 0..1 intensity
+    const hue = (SUITS[e.suit].hue + (rankVal - 7) * 2 + 360) % 360;
+    const ang = rng() * Math.PI * 2, dist = Math.sqrt(rng()) * R * PIX.spread;
+    return { hue, t, x: cx + Math.cos(ang)*dist, y: cy + Math.sin(ang)*dist,
+             r: R * (0.40 + 0.28*t), str: 0.7 + 0.5*t };
   });
-  ctx.globalCompositeOperation = 'source-over';
+  const baseHue = circularMeanHue(raw.length ? raw.map(n => n.hue) : [212]);
+  // harmonize: pull each region's hue toward the planet's mean
+  const nodes = raw.map(n => {
+    const dh = ((n.hue - baseHue + 540) % 360) - 180;
+    return { ...n, hue: baseHue + dh * (1 - PIX.huePull) };
+  });
+  // 3-tone palette (lit / mid / shadow) per region; rank drives brightness
+  const nodePal = nodes.map(n => {
+    const sat = PIX.satLo + (PIX.satHi - PIX.satLo) * n.t;
+    const L = 34 + 24 * n.t;
+    return [hsl(n.hue, sat, Math.min(76, L+15)), hsl(n.hue, sat, L),
+            hsl(n.hue, sat+4, Math.max(13, L-15))];
+  });
+  const basePal = [hsl(baseHue,26,30), hsl(baseHue,28,22), hsl(baseHue,30,14)];
+  const haloColor = hsl(baseHue, 38, 17);
 
-  // sphere shading (terminator + highlight)
-  if (AES.shade > 0){
-    const s = AES.shade/100;
-    const sh = ctx.createRadialGradient(cx-R*0.32, cy-R*0.32, R*0.12, cx+R*0.3, cy+R*0.34, R*1.35);
-    sh.addColorStop(0, 'rgba(0,0,0,0)');
-    sh.addColorStop(0.5, `rgba(0,0,0,${0.30*s})`);
-    sh.addColorStop(1, `rgba(0,0,0,${0.95*s})`);
-    ctx.fillStyle = sh; ctx.fillRect(cx-R, cy-R, 2*R, 2*R);
-    const hl = ctx.createRadialGradient(cx-R*0.34, cy-R*0.36, 0, cx-R*0.34, cy-R*0.36, R*0.85);
-    hl.addColorStop(0, `rgba(255,255,255,${0.30*s})`); hl.addColorStop(1, 'rgba(255,255,255,0)');
-    ctx.fillStyle = hl; ctx.fillRect(cx-R, cy-R, 2*R, 2*R);
-  }
+  // paint the cell grid at native resolution
+  const off = (typeof OffscreenCanvas !== 'undefined')
+    ? new OffscreenCanvas(N, N)
+    : Object.assign(document.createElement('canvas'), { width: N, height: N });
+  const octx = off.getContext('2d');
+  const lx = cx - R*0.55, ly = cy - R*0.55;             // light from upper-left
 
-  // grain — perturbs the ACTUAL rendered pixels with fine tonal noise of the
-  // local color (lighter/darker, hue kept) so it reads as the gradients being
-  // printed on toothy paper. Densest in shadow/transition, eased in bright cores.
-  if (AES.grain > 0){
-    const gA = AES.grain/100, gC = Math.pow(gA, 1.5);
-    const samp = ctx.getImageData(0, 0, S, S).data;
-    const target = Math.floor(R*R*(0.10 + 0.65*gC)), R2 = R*R, unit = S/1024;
-    let drawn = 0, guard = target*4;
-    while (drawn < target && guard-- > 0){
-      const fx = cx + (rng()-0.5)*2*R, fy = cy + (rng()-0.5)*2*R;
-      const dx = fx-cx, dy = fy-cy; if (dx*dx + dy*dy > R2) continue;
-      const idx = (((fy|0)*S) + (fx|0))*4;
-      const r = samp[idx], g = samp[idx+1], b = samp[idx+2];
-      const L = (0.299*r + 0.587*g + 0.114*b)/255;
-      const tone = 0.25 + 0.95*Math.pow(1-L, 1.2);
-      if (rng() > tone) continue;
-      const amp = (0.16 + 0.74*gC)*(0.30 + 0.70*(1-L));
-      let delta = (rng()*2 - 1)*amp;
-      if (L < 0.10) delta = Math.abs(delta);
-      const f = 1 + delta;
-      const nr = Math.max(0, Math.min(255, r*f)), ng = Math.max(0, Math.min(255, g*f)), nb = Math.max(0, Math.min(255, b*f));
-      const sz = (0.6 + rng()*0.9)*unit;
-      ctx.globalAlpha = 0.5 + 0.4*rng();
-      ctx.fillStyle = `rgb(${nr|0},${ng|0},${nb|0})`;
-      ctx.fillRect(fx, fy, sz, sz);
-      drawn++;
+  for (let y = 0; y < N; y++){
+    for (let x = 0; x < N; x++){
+      const d = Math.hypot(x-cx, y-cy);
+      if (d > R){                                        // outside the sphere
+        if (d <= R + 1.1){ octx.fillStyle = haloColor; octx.fillRect(x, y, 1, 1); }
+        continue;
+      }
+      // owning region: strongest weight wins; near-ties checker-blend
+      let s1 = -1, w1 = 0, s2 = -1, w2 = 0;
+      for (let i = 0; i < nodes.length; i++){
+        const n = nodes[i];
+        const nd = Math.hypot(x-n.x, y-n.y);
+        const w = n.str / (1 + Math.pow(nd/n.r, 2));
+        if (w > w1){ s2 = s1; w2 = w1; s1 = i; w1 = w; }
+        else if (w > w2){ s2 = i; w2 = w; }
+      }
+      let src = s1;
+      if (s2 >= 0 && (w1-w2)/w1 < PIX.blend && (x+y)%2 === 0) src = s2;
+      // tone band from light distance, dithered at the boundaries
+      const dl = Math.hypot(x-lx, y-ly) / (2.1*R);
+      const { toneT1:T1, toneT2:T2, toneW:W } = PIX;
+      let tone;
+      if (dl < T1-W) tone = 0;
+      else if (dl < T1+W) tone = ((x+y)%2===0) ? 0 : 1;
+      else if (dl < T2-W) tone = 1;
+      else if (dl < T2+W) tone = ((x+y)%2===0) ? 1 : 2;
+      else tone = 2;
+      octx.fillStyle = (src === -1) ? basePal[tone] : nodePal[src][tone];
+      octx.fillRect(x, y, 1, 1);
     }
-    ctx.globalAlpha = 1;
   }
-  ctx.restore();
 
-  // thin atmospheric rim
-  ctx.beginPath(); ctx.arc(cx, cy, R, 0, 7);
-  ctx.strokeStyle = `hsla(${baseHue},60%,75%,0.18)`; ctx.lineWidth = S*0.004; ctx.stroke();
-
+  // nearest-neighbor upscale to the target canvas
+  const ctx = canvas.getContext('2d');
+  ctx.clearRect(0, 0, canvas.width, canvas.height);
+  ctx.imageSmoothingEnabled = false;
+  ctx.drawImage(off, 0, 0, N, N, 0, 0, canvas.width, canvas.height);
   return canvas;
 }
 
@@ -222,7 +158,7 @@ function renderPlanet(canvas, planet){
  *   Build the storable seed for a finished game. Pass the game's real entries.
  *   If you omit salt, a random one is generated — call this ONCE when the game
  *   ends and save the returned object; do not regenerate the salt later or the
- *   nodes will move.
+ *   regions will move.
  * --------------------------------------------------------------------------*/
 function makePlanetSeed(entries, salt){
   return {
@@ -234,7 +170,7 @@ function makePlanetSeed(entries, salt){
 /* ----------------------------------------------------------------------------
  * planetToDataURL(planet[, size])
  *   Convenience: render off-screen at `size` px and return a PNG data URL.
- *   Handy for <img src> on the archive, or a future "save my planet" export.
+ *   Flat-color pixel art compresses tiny (a few KB even at 512).
  * --------------------------------------------------------------------------*/
 function planetToDataURL(planet, size = 512){
   const c = document.createElement('canvas');
@@ -244,10 +180,9 @@ function planetToDataURL(planet, size = 512){
 }
 
 // ---- exports ----------------------------------------------------------------
-// ES module exports:
-export { renderPlanet, makePlanetSeed, planetToDataURL, SUITS, RANKS, AES };
+export { renderPlanet, makePlanetSeed, planetToDataURL, SUITS, RANKS, PIX };
 
 // Also expose a global for plain <script> usage (harmless under a bundler):
 if (typeof window !== 'undefined') {
-  window.PlanetRenderer = { renderPlanet, makePlanetSeed, planetToDataURL, SUITS, RANKS, AES };
+  window.PlanetRenderer = { renderPlanet, makePlanetSeed, planetToDataURL, SUITS, RANKS, PIX };
 }
