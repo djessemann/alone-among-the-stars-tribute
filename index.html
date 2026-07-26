@@ -229,10 +229,9 @@
      transparent background, so no border-radius/shadow here. */
   .planet-canvas{ display:block; }
 
-  /* crescent moon (intro) */
-  .moon{ position:relative; width:120px; height:120px; border-radius:50%; background:var(--card);
-    box-shadow:0 0 60px rgba(245,243,238,.15); }
-  .moon::after{ content:''; position:absolute; top:-12px; left:22px; width:120px; height:120px; border-radius:50%; background:#000; }
+  /* crescent moon (intro) — pixel sprite drawn by PixelMoon in app.src.jsx;
+     hard edges, no glow, like the rest of the 8-bit kit */
+  .moon{ display:block; }
 
   /* ---------- atmosphere: starfield (title + intro) ----------
      Sparkles placed in outer "safe zones" only — top band, side strips,
