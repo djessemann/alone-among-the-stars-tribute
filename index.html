@@ -77,16 +77,19 @@
     width:100%;
   }
   /* Reserve a band at the bottom so nothing sits under the fixed home/help
-     chrome — and mirror the SAME reserve on top, so the content window is
-     vertically centered in the viewport on every screen. The reserve always
-     exceeds the notch inset (+20px), so no max() is needed — deliberately:
-     Safari drops nested math-function padding values, which silently reverts
-     to the old top padding. Plain calc() lines parse everywhere; the first
-     padding-top is a fallback if the second ever fails to resolve. */
+     chrome — and mirror the SAME reserve on top PLUS a 6.5vh status-bar
+     compensation, so content reads centered in the VISIBLE area. Why 6.5vh
+     and not env(): on installed iOS web apps the viewport spans the full
+     screen (content renders under the status bar) while iOS reports
+     safe-area-inset-* as 0 — measured live via the title-screen probe
+     (pt/pb symmetric, st0 sb0, ih = full screen height). Any inset-based
+     compensation is therefore a no-op exactly where it is needed; the
+     status bar is ~6-7% of screen height on all iPhones, so a viewport-
+     relative bias lands right on every device and browsers merely read as
+     "shifted down slightly", which is the intended look anyway. */
   .screen.with-chrome{
     padding-bottom: calc(var(--safe-bottom) + var(--chrome-size) + 42px);
-    padding-top: calc(var(--safe-top) + 20px);
-    padding-top: calc(var(--safe-bottom) + var(--chrome-size) + 42px);
+    padding-top: calc(var(--safe-bottom) + var(--chrome-size) + 42px + 6.5vh);
   }
   .center{ flex:1; display:flex; flex-direction:column; align-items:center; justify-content:center; gap:8px; text-align:center; }
   /* roll screens: the die (or die+card) anchors to the upper part of the
