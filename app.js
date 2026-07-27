@@ -620,7 +620,7 @@ function App() {
      ============================================================ */
   function renderTitle() {
     return /*#__PURE__*/React.createElement("div", {
-      className: "screen fade-in"
+      className: "screen with-chrome fade-in"
     }, /*#__PURE__*/React.createElement("div", {
       className: "sky"
     }), /*#__PURE__*/React.createElement("div", {
@@ -651,7 +651,10 @@ function App() {
       }
     }, "Archive"))), /*#__PURE__*/React.createElement(Chrome, {
       onHelp: () => setOverlay('help')
-    }));
+    }), /*#__PURE__*/React.createElement("span", {
+      className: "build-tag",
+      "aria-hidden": "true"
+    }, "v29"));
   }
   function renderIntro() {
     return /*#__PURE__*/React.createElement("div", {
