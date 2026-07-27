@@ -387,7 +387,22 @@
 
 <script>
   // Register the service worker for offline / installable PWA support.
+  // The shell is served cache-first, so a freshly shipped version normally
+  // only appears on the SECOND launch (first launch renders the old cache,
+  // then installs the new worker). To apply updates on the FIRST launch:
+  // when a new worker takes control shortly after load, reload once. The
+  // time guard means we never reload mid-session (which could interrupt an
+  // entry being written) — later updates just apply on the next launch.
   if ('serviceWorker' in navigator) {
+    const loadedAt = Date.now();
+    let hadController = !!navigator.serviceWorker.controller;
+    let reloaded = false;
+    navigator.serviceWorker.addEventListener('controllerchange', () => {
+      if (!hadController){ hadController = true; return; }   // first-ever install: nothing cached yet
+      if (reloaded || Date.now() - loadedAt > 3000) return;
+      reloaded = true;
+      location.reload();
+    });
     window.addEventListener('load', () => {
       navigator.serviceWorker.register('sw.js').catch(() => {});
     });
