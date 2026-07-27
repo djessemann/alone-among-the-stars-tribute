@@ -909,7 +909,6 @@ function App() {
     setActiveIndex(null);
     setSelectedIndex(null);
     setDraftText('');
-    setToast('Journal published.');
     setScreen('archive');
   }
 

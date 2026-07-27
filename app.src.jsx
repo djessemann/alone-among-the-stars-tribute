@@ -838,7 +838,6 @@ function App(){
     const next = [planet, ...archive];
     setArchive(next); saveArchive(next);
     setSession(null); setActiveIndex(null); setSelectedIndex(null); setDraftText('');
-    setToast('Journal published.');
     setScreen('archive');
   }
 
