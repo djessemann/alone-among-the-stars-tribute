@@ -207,6 +207,10 @@
      variant); corner rank size/position is set inline, proportional to the
      card width, so grid and reveal cards are exact scales of one layout */
   .card .center-glyph svg{ display:block; }
+  /* pip-spread svgs must be block too: an inline svg baseline-aligns inside
+     its positioned span, and when the sprite is shorter than the font strut
+     (only at grid-card size) the browser pushes it a couple px down */
+  .card .pip-spot svg{ display:block; }
   .card .corner{ position:absolute; line-height:1; text-align:center;
     font-family:'Press Start 2P', ui-monospace, monospace; font-weight:400; }
   /* bottom-right index reads upside down, like a real playing card */

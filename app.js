@@ -590,6 +590,7 @@ function Card({
         areaH = H - 2 * my;
       middle = layout.map(([c, t, f], i) => /*#__PURE__*/React.createElement("span", {
         key: i,
+        className: "pip-spot",
         style: {
           position: 'absolute',
           left: mx + c * (areaW / 2) - pipW / 2,

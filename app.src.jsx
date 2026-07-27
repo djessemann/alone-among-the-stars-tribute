@@ -609,7 +609,7 @@ function Card({ card, faceUp, variant='', selected=false, onClick }){
       const pipW = map[0].length*pipPx, pipH = map.length*pipPx;
       const mx = W*0.25, my = H*0.215, areaW = W-2*mx, areaH = H-2*my;
       middle = layout.map(([c, t, f], i) =>
-        <span key={i} style={{ position:'absolute',
+        <span key={i} className="pip-spot" style={{ position:'absolute',
           left: mx + c*(areaW/2) - pipW/2, top: my + t*areaH - pipH/2 }}>
           <PixelGlyph name={card.suit} px={pipPx} flip={!!f} />
         </span>);
