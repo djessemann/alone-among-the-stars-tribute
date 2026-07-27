@@ -380,11 +380,14 @@ function Card({ card, faceUp, variant='', selected=false, onClick }){
     // one shared cell scale per context so all four suits render at the same
     // pixel density despite different sprite proportions
     const isReveal = variant === 'reveal-card', isThumb = variant === 'thumb';
-    const centerPx = isReveal ? 6.5 : isThumb ? 1.6 : 3.4;
+    const centerPx = isReveal ? 6.5 : isThumb ? 1.35 : 3.4;
     const cornerPx = isReveal ? 1.6 : 1.0;
     return (
       <div className={cls.join(' ')} onClick={onClick}>
-        {!isThumb && <span className="corner tl"><span className="r">{card.rank}</span><PixelGlyph name={card.suit} px={cornerPx} /></span>}
+        {isThumb
+          /* thumbs: rank-only corner (no mini suit) + centered suit sprite */
+          ? <span className="corner tl"><span className="r">{card.rank}</span></span>
+          : <span className="corner tl"><span className="r">{card.rank}</span><PixelGlyph name={card.suit} px={cornerPx} /></span>}
         <span className="center-glyph"><PixelGlyph name={card.suit} px={centerPx} /></span>
         {!isThumb && <span className="corner br"><span className="r">{card.rank}</span><PixelGlyph name={card.suit} px={cornerPx} /></span>}
       </div>
