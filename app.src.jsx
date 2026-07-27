@@ -426,34 +426,6 @@ function Chrome({ onHome, onHelp }){
   );
 }
 
-/* Title-screen build stamp, temporarily doubling as a live layout probe:
-   shows the build plus the values the DEVICE actually computed — the
-   screen's applied top/bottom padding, the real safe-area insets, the
-   viewport height, and where the title landed. Diagnoses layout issues
-   that emulation cannot reproduce. */
-function BuildTag(){
-  const [txt, setTxt] = useState('v31');
-  useEffect(() => {
-    const t = setTimeout(() => {
-      try{
-        const scr = document.querySelector('.screen');
-        const cs = getComputedStyle(scr);
-        const probe = document.createElement('div');
-        probe.style.cssText = 'position:fixed;left:0;width:1px;top:env(safe-area-inset-top);bottom:env(safe-area-inset-bottom);pointer-events:none;visibility:hidden;';
-        document.body.appendChild(probe);
-        const r = probe.getBoundingClientRect();
-        const st = Math.round(r.top);
-        const sb = Math.round(window.innerHeight - r.bottom);
-        probe.remove();
-        const h1 = document.querySelector('h1').getBoundingClientRect();
-        setTxt(`v31 · pt${Math.round(parseFloat(cs.paddingTop))} pb${Math.round(parseFloat(cs.paddingBottom))} · st${st} sb${sb} · ih${window.innerHeight} · h1@${Math.round(h1.top)}`);
-      }catch(e){ setTxt('v31 · probe failed'); }
-    }, 150);
-    return () => clearTimeout(t);
-  }, []);
-  return <span className="build-tag" aria-hidden="true">{txt}</span>;
-}
-
 /* A rendered planet. Draws onto a <canvas> via the planet renderer, sized to
    its CSS box (retina-aware). `seed` is { entries, salt }. If the renderer is
    somehow unavailable, falls back to a flat colored disc. */
@@ -657,7 +629,7 @@ function App(){
      ============================================================ */
   function renderTitle(){
     return (
-      <div className="screen with-chrome fade-in">
+      <div className="screen fade-in">
         <div className="sky" />
         <div className="center" style={{gap:0}}>
           <h1>Alone<br/>Among<br/>the Stars</h1>
@@ -669,7 +641,6 @@ function App(){
           </div>
         </div>
         <Chrome onHelp={() => setOverlay('help')} />
-        <BuildTag />
       </div>
     );
   }
