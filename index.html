@@ -77,12 +77,16 @@
     width:100%;
   }
   /* Reserve a band at the bottom so nothing sits under the fixed home/help
-     chrome — and mirror the same reserve on top (never less than the notch
-     inset), so the content window is vertically centered in the viewport on
-     every screen. Screens then lay out inside that one centered window. */
+     chrome — and mirror the SAME reserve on top, so the content window is
+     vertically centered in the viewport on every screen. The reserve always
+     exceeds the notch inset (+20px), so no max() is needed — deliberately:
+     Safari drops nested math-function padding values, which silently reverts
+     to the old top padding. Plain calc() lines parse everywhere; the first
+     padding-top is a fallback if the second ever fails to resolve. */
   .screen.with-chrome{
     padding-bottom: calc(var(--safe-bottom) + var(--chrome-size) + 42px);
-    padding-top: max(calc(var(--safe-top) + 20px), calc(var(--safe-bottom) + var(--chrome-size) + 42px));
+    padding-top: calc(var(--safe-top) + 20px);
+    padding-top: calc(var(--safe-bottom) + var(--chrome-size) + 42px);
   }
   .center{ flex:1; display:flex; flex-direction:column; align-items:center; justify-content:center; gap:8px; text-align:center; }
   /* roll screens: the die (or die+card) anchors to the upper part of the
