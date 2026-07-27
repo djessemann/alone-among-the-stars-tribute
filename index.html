@@ -76,12 +76,18 @@
     margin:0 auto;
     width:100%;
   }
-  /* reserve a band at the bottom so nothing sits under the fixed home/help chrome */
-  .screen.with-chrome{ padding-bottom: calc(var(--safe-bottom) + var(--chrome-size) + 42px); }
+  /* Reserve a band at the bottom so nothing sits under the fixed home/help
+     chrome — and mirror the same reserve on top (never less than the notch
+     inset), so the content window is vertically centered in the viewport on
+     every screen. Screens then lay out inside that one centered window. */
+  .screen.with-chrome{
+    padding-bottom: calc(var(--safe-bottom) + var(--chrome-size) + 42px);
+    padding-top: max(calc(var(--safe-top) + 20px), calc(var(--safe-bottom) + var(--chrome-size) + 42px));
+  }
   .center{ flex:1; display:flex; flex-direction:column; align-items:center; justify-content:center; gap:8px; text-align:center; }
-  /* roll screens: the die (or die+card) is anchored to a fixed upper position
-     so it does not jump when the result text and button appear below it */
-  .center.anchored{ justify-content:flex-start; padding-top:clamp(24px, 12vh, 110px); }
+  /* roll screens: the die (or die+card) anchors to the upper part of the
+     centered window so it does not jump when the result text appears below */
+  .center.anchored{ justify-content:flex-start; padding-top:clamp(16px, 7vh, 70px); }
   .grow{ flex:1; overscroll-behavior:contain; -webkit-overflow-scrolling:touch; }
 
   /* ---------- typography ---------- */
