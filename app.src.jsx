@@ -629,7 +629,7 @@ function App(){
      ============================================================ */
   function renderTitle(){
     return (
-      <div className="screen fade-in">
+      <div className="screen with-chrome fade-in">
         <div className="sky" />
         <div className="center" style={{gap:0}}>
           <h1>Alone<br/>Among<br/>the Stars</h1>
@@ -641,6 +641,7 @@ function App(){
           </div>
         </div>
         <Chrome onHelp={() => setOverlay('help')} />
+        <span className="build-tag" aria-hidden="true">v29</span>
       </div>
     );
   }

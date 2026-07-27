@@ -368,6 +368,11 @@
     box-shadow:5px 5px 0 0 #23231f;
     image-rendering:pixelated; image-rendering:crisp-edges; }
 
+  /* tiny build stamp on the title screen — confirms which version a device runs */
+  .build-tag{ position:fixed; left:50%; transform:translateX(-50%);
+    bottom:calc(var(--safe-bottom) + 4px); font-size:9px; letter-spacing:1px;
+    color:#3a3a3a; z-index:41; pointer-events:none; }
+
   .fade-in{ animation:fade .25s ease; }
   @keyframes fade{ from{opacity:0} to{opacity:1} }
 </style>
