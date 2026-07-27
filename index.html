@@ -76,25 +76,12 @@
     margin:0 auto;
     width:100%;
   }
-  /* Reserve a band at the bottom so nothing sits under the fixed home/help
-     chrome — and mirror the SAME reserve on top PLUS a 6.5vh status-bar
-     compensation, so content reads centered in the VISIBLE area. Why 6.5vh
-     and not env(): on installed iOS web apps the viewport spans the full
-     screen (content renders under the status bar) while iOS reports
-     safe-area-inset-* as 0 — measured live via the title-screen probe
-     (pt/pb symmetric, st0 sb0, ih = full screen height). Any inset-based
-     compensation is therefore a no-op exactly where it is needed; the
-     status bar is ~6-7% of screen height on all iPhones, so a viewport-
-     relative bias lands right on every device and browsers merely read as
-     "shifted down slightly", which is the intended look anyway. */
-  .screen.with-chrome{
-    padding-bottom: calc(var(--safe-bottom) + var(--chrome-size) + 42px);
-    padding-top: calc(var(--safe-bottom) + var(--chrome-size) + 42px + 6.5vh);
-  }
+  /* reserve a band at the bottom so nothing sits under the fixed home/help chrome */
+  .screen.with-chrome{ padding-bottom: calc(var(--safe-bottom) + var(--chrome-size) + 42px); }
   .center{ flex:1; display:flex; flex-direction:column; align-items:center; justify-content:center; gap:8px; text-align:center; }
-  /* roll screens: the die (or die+card) anchors to the upper part of the
-     centered window so it does not jump when the result text appears below */
-  .center.anchored{ justify-content:flex-start; padding-top:clamp(16px, 7vh, 70px); }
+  /* roll screens: the die (or die+card) is anchored to a fixed upper position
+     so it does not jump when the result text and button appear below it */
+  .center.anchored{ justify-content:flex-start; padding-top:clamp(24px, 12vh, 110px); }
   .grow{ flex:1; overscroll-behavior:contain; -webkit-overflow-scrolling:touch; }
 
   /* ---------- typography ---------- */
@@ -370,11 +357,6 @@
   .journal-sketch{ width:100%; display:block; border-radius:0; background:var(--card);
     box-shadow:5px 5px 0 0 #23231f;
     image-rendering:pixelated; image-rendering:crisp-edges; }
-
-  /* tiny build stamp on the title screen — confirms which version a device runs */
-  .build-tag{ position:fixed; left:50%; transform:translateX(-50%);
-    bottom:calc(var(--safe-bottom) + 4px); font-size:9px; letter-spacing:1px;
-    color:#3a3a3a; z-index:41; pointer-events:none; }
 
   .fade-in{ animation:fade .25s ease; }
   @keyframes fade{ from{opacity:0} to{opacity:1} }
