@@ -203,15 +203,14 @@
   }
   .card.face.red{ color:var(--card-red); }
   /* suit svg sizes come from the sprite markup (uniform cell scale per
-     variant); CSS only handles placement */
+     variant); corner rank size/position is set inline, proportional to the
+     card width, so grid and reveal cards are exact scales of one layout */
   .card .center-glyph svg{ display:block; }
   .card .corner{ position:absolute; line-height:1; text-align:center;
-    font-family:'Press Start 2P', ui-monospace, monospace; font-size:12px; font-weight:400; }
-  .card .corner.tl{ top:10px; left:9px; }
+    font-family:'Press Start 2P', ui-monospace, monospace; font-weight:400; }
   /* bottom-right index reads upside down, like a real playing card */
-  .card .corner.br{ bottom:10px; right:9px; transform:rotate(180deg); }
+  .card .corner.br{ transform:rotate(180deg); }
   .card .corner .r{ display:block; }
-  .card .corner svg{ display:block; margin:4px auto 0; }
 
   .card.reveal-card{ width:188px; height:272px; animation:zoomIn .35s steps(6,end); }
   .card.reveal-card.face{
@@ -222,8 +221,6 @@
     box-shadow: 0 -5px 0 0 #71271f, 0 5px 0 0 #71271f,
                 -5px 0 0 0 #71271f, 5px 0 0 0 #71271f; }
   .card.reveal-card.back svg{ width:44px; height:44px; }
-  .card.reveal-card .corner{ font-size:20px; }
-  .card.reveal-card .corner svg{ margin-top:6px; }
   @keyframes zoomIn{ from{ transform:scale(.4); opacity:.2 } to{ transform:scale(1); opacity:1 } }
   /* die + card sitting together on the reveal screen */
   .reveal-row{ display:flex; align-items:center; justify-content:center; gap:18px; flex-wrap:wrap; }

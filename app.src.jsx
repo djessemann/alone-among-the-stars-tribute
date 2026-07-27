@@ -303,9 +303,11 @@ const PIXEL_SPRITES = {
 
 /* px = size of one sprite cell in CSS pixels. When given, the svg gets
    explicit dimensions so differently-proportioned sprites share one cell
-   scale (uniform pixel density). Without it, CSS controls the size. */
-function PixelGlyph({ name, px }){
-  const map = PIXEL_SPRITES[name];
+   scale (uniform pixel density). Without it, CSS controls the size.
+   flip renders the sprite rotated 180° (for bottom-half card pips). */
+function PixelGlyph({ name, px, flip }){
+  let map = PIXEL_SPRITES[name];
+  if(flip) map = [...map].reverse().map(r => r.split('').reverse().join(''));
   const w = map[0].length, h = map.length;
   const rects = [];
   map.forEach((row, y) => {
@@ -319,6 +321,21 @@ function PixelGlyph({ name, px }){
     </svg>
   );
 }
+
+/* Traditional playing-card pip arrangements for 2–10:
+   [column 0=left 1=center 2=right, y 0..1 within the pip area, flipped].
+   Ace and face cards keep the single large suit sprite instead. */
+const PIP_LAYOUTS = {
+  '2': [[1,0],[1,1,1]],
+  '3': [[1,0],[1,.5],[1,1,1]],
+  '4': [[0,0],[2,0],[0,1,1],[2,1,1]],
+  '5': [[0,0],[2,0],[1,.5],[0,1,1],[2,1,1]],
+  '6': [[0,0],[2,0],[0,.5],[2,.5],[0,1,1],[2,1,1]],
+  '7': [[0,0],[2,0],[1,.25],[0,.5],[2,.5],[0,1,1],[2,1,1]],
+  '8': [[0,0],[2,0],[1,.25],[0,.5],[2,.5],[1,.75,1],[0,1,1],[2,1,1]],
+  '9': [[0,0],[2,0],[0,1/3],[2,1/3],[1,.5],[0,2/3,1],[2,2/3,1],[0,1,1],[2,1,1]],
+  '10':[[0,0],[2,0],[1,1/6],[0,1/3],[2,1/3],[0,2/3,1],[2,2/3,1],[1,5/6,1],[0,1,1],[2,1,1]],
+};
 
 /* Intro-screen crescent moon: '#' = light-yellow fill, 'x' = olive outline
    and plus-shaped crater pixels. Right-facing crescent, 28x28 grid. */
@@ -380,16 +397,40 @@ function Card({ card, faceUp, variant='', selected=false, onClick }){
     // one shared cell scale per context so all four suits render at the same
     // pixel density despite different sprite proportions
     const isReveal = variant === 'reveal-card', isThumb = variant === 'thumb';
-    const centerPx = isReveal ? 6.5 : isThumb ? 1.35 : 3.4;
-    const cornerPx = isReveal ? 1.6 : 1.0;
+    if(isThumb){
+      /* thumbs: rank-only corner (no mini suit) + centered suit sprite */
+      return (
+        <div className={cls.join(' ')} onClick={onClick}>
+          <span className="corner tl"><span className="r">{card.rank}</span></span>
+          <span className="center-glyph"><PixelGlyph name={card.suit} px={1.35} /></span>
+        </div>
+      );
+    }
+    /* One proportional layout for grid + reveal cards: every measurement
+       derives from card width, so both sizes are exact scales of one design.
+       Corners carry the rank only; the suit lives in the pip spread (2–10)
+       or the single large sprite (A/J/Q/K). */
+    const W = isReveal ? 188 : 96, H = isReveal ? 272 : 140;
+    const inset = W*0.067, font = W*0.0933, pipPx = W*0.009, bigPx = W*0.0307;
+    const layout = PIP_LAYOUTS[card.rank];
+    let middle;
+    if(layout){
+      const map = PIXEL_SPRITES[card.suit];
+      const pipW = map[0].length*pipPx, pipH = map.length*pipPx;
+      const mx = W*0.25, my = H*0.215, areaW = W-2*mx, areaH = H-2*my;
+      middle = layout.map(([c, t, f], i) =>
+        <span key={i} style={{ position:'absolute',
+          left: mx + c*(areaW/2) - pipW/2, top: my + t*areaH - pipH/2 }}>
+          <PixelGlyph name={card.suit} px={pipPx} flip={!!f} />
+        </span>);
+    } else {
+      middle = <span className="center-glyph"><PixelGlyph name={card.suit} px={bigPx} /></span>;
+    }
     return (
       <div className={cls.join(' ')} onClick={onClick}>
-        {isThumb
-          /* thumbs: rank-only corner (no mini suit) + centered suit sprite */
-          ? <span className="corner tl"><span className="r">{card.rank}</span></span>
-          : <span className="corner tl"><span className="r">{card.rank}</span><PixelGlyph name={card.suit} px={cornerPx} /></span>}
-        <span className="center-glyph"><PixelGlyph name={card.suit} px={centerPx} /></span>
-        {!isThumb && <span className="corner br"><span className="r">{card.rank}</span><PixelGlyph name={card.suit} px={cornerPx} /></span>}
+        <span className="corner tl" style={{ top:inset, left:inset, fontSize:font }}>{card.rank}</span>
+        {middle}
+        <span className="corner br" style={{ bottom:inset, right:inset, fontSize:font }}>{card.rank}</span>
       </div>
     );
   }
