@@ -235,8 +235,10 @@
                 -2px 0 0 0 var(--card), 2px 0 0 0 var(--card),
                 3px 3px 0 0 #23231f;
   }
-  /* journal thumbnails show only the center suit sprite, no corner indices */
-  .card.thumb .corner{ display:none; }
+  /* journal thumbnails: rank-only corner (bigger, no mini suit) + center sprite */
+  .card.thumb .corner{ font-size:10px; }
+  .card.thumb .corner.tl{ top:5px; left:5px; }
+  .card.thumb .center-glyph{ margin-top:11px; }
 
   /* ---------- planet visual ---------- */
   .planet{ border-radius:50%; box-shadow:0 0 40px rgba(255,255,255,.06); }

@@ -283,12 +283,17 @@ function Card({
     // pixel density despite different sprite proportions
     const isReveal = variant === 'reveal-card',
       isThumb = variant === 'thumb';
-    const centerPx = isReveal ? 6.5 : isThumb ? 1.6 : 3.4;
+    const centerPx = isReveal ? 6.5 : isThumb ? 1.35 : 3.4;
     const cornerPx = isReveal ? 1.6 : 1.0;
     return /*#__PURE__*/React.createElement("div", {
       className: cls.join(' '),
       onClick: onClick
-    }, !isThumb && /*#__PURE__*/React.createElement("span", {
+    }, isThumb
+    /* thumbs: rank-only corner (no mini suit) + centered suit sprite */ ? /*#__PURE__*/React.createElement("span", {
+      className: "corner tl"
+    }, /*#__PURE__*/React.createElement("span", {
+      className: "r"
+    }, card.rank)) : /*#__PURE__*/React.createElement("span", {
       className: "corner tl"
     }, /*#__PURE__*/React.createElement("span", {
       className: "r"
