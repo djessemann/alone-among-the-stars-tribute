@@ -379,7 +379,7 @@ function Chrome({
    viewport height, and where the title landed. Diagnoses layout issues
    that emulation cannot reproduce. */
 function BuildTag() {
-  const [txt, setTxt] = useState('v30');
+  const [txt, setTxt] = useState('v31');
   useEffect(() => {
     const t = setTimeout(() => {
       try {
@@ -393,9 +393,9 @@ function BuildTag() {
         const sb = Math.round(window.innerHeight - r.bottom);
         probe.remove();
         const h1 = document.querySelector('h1').getBoundingClientRect();
-        setTxt(`v30 · pt${Math.round(parseFloat(cs.paddingTop))} pb${Math.round(parseFloat(cs.paddingBottom))} · st${st} sb${sb} · ih${window.innerHeight} · h1@${Math.round(h1.top)}`);
+        setTxt(`v31 · pt${Math.round(parseFloat(cs.paddingTop))} pb${Math.round(parseFloat(cs.paddingBottom))} · st${st} sb${sb} · ih${window.innerHeight} · h1@${Math.round(h1.top)}`);
       } catch (e) {
-        setTxt('v30 · probe failed');
+        setTxt('v31 · probe failed');
       }
     }, 150);
     return () => clearTimeout(t);
