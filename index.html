@@ -110,6 +110,7 @@
   .btn.primary{ background:var(--fg); color:#000; border-color:var(--fg); }
   .btn.danger{ color:var(--red); border-color:var(--red); background:transparent; }
   .btn.danger.solid{ background:transparent; }
+  .btn.small{ min-width:0; font-size:12.5px; padding:8px 16px; }
   .btn-stack{ display:flex; flex-direction:column; align-items:center; gap:14px; }
 
   /* ---------- persistent chrome ----------
@@ -303,7 +304,11 @@
 
   /* ---------- archive ---------- */
   .archive-title{ text-align:center; padding:24px 0 18px; letter-spacing:1px; }
-  .archive-grid{ display:grid; grid-template-columns:1fr 1fr; gap:16px; padding-bottom:90px; }
+  .archive-grid{ display:grid; grid-template-columns:1fr 1fr; gap:16px; }
+  /* save/restore utility row, after the last planet (the with-chrome screen
+     padding keeps it clear of the fixed home/help bar) */
+  .archive-util{ border-top:1px solid var(--line); margin-top:22px; padding:20px 0 4px;
+    display:flex; justify-content:center; gap:12px; }
   .planet-module{ border:1.5px solid var(--line); border-radius:0; padding:18px 12px; text-align:center;
     display:flex; flex-direction:column; align-items:center; gap:12px; }
   .planet-module:active{ transform:scale(.98); }
@@ -318,6 +323,8 @@
   .toast button{ background:none; border:none; color:var(--fg); font-size:14.5px; }
 
   /* ---------- full journal ---------- */
+  .fj-actions-row{ display:flex; justify-content:center; gap:14px; padding-top:24px; }
+  .fj-actions-row .btn{ min-width:0; }
   .fj-header{ display:flex; gap:16px; align-items:flex-start; padding:8px 0 12px; }
   .fj-meta{ font-style:italic; color:var(--dim); font-size:11px; line-height:1.6; min-width:0; }
   .fj-meta .pn{ color:var(--fg); font-weight:700; }

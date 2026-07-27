@@ -1,5 +1,7 @@
-/* app.js — GENERATED from app.src.jsx (compiled with @babel/preset-react).
-   Do not edit by hand; edit app.src.jsx and recompile. React 18 classic runtime. */
+/* app.src.jsx — editable JSX source for the app (was inline in index.html).
+   This is the file to edit. Recompile to app.js (loaded by index.html) with:
+     npx @babel/cli@7 --presets @babel/preset-react app.src.jsx > app.js
+   React 18 classic runtime; React/ReactDOM are global (vendored UMD builds). */
 const {
   useState,
   useEffect,
@@ -183,6 +185,255 @@ function saveArchive(arr) {
   try {
     localStorage.setItem(STORE_KEY, JSON.stringify(arr));
   } catch (e) {}
+}
+function downloadBlob(blob, name) {
+  const a = document.createElement('a');
+  a.href = URL.createObjectURL(blob);
+  a.download = name;
+  document.body.appendChild(a);
+  a.click();
+  a.remove();
+  setTimeout(() => URL.revokeObjectURL(a.href), 5000);
+}
+
+/* ============================================================
+   JOURNAL EXPORT — a shareable "ship's log" PNG for one planet,
+   and a versioned .json backup of the whole archive.
+   ============================================================ */
+const ARCHIVE_FORMAT = 'aats-archive';
+const ARCHIVE_VERSION = 1;
+
+/* Export palette/metrics: the app's look at 1080px wide. All sizes are the
+   in-app thumbnail sizes scaled ×2.7 (46px card → 124px, etc.). */
+const EXP = {
+  W: 1080,
+  PAD: 92,
+  ink: '#f2f0ea',
+  dim: '#8a8a8a',
+  line: '#2a2a2a',
+  card: '#f5f3ee',
+  cardInk: '#111',
+  cardRed: '#c4322b',
+  bevel: '#d9d5c9',
+  shadow: '#23231f'
+};
+
+// Word-wrap `text` to maxW using the font currently set on ctx.
+// Explicit newlines in journal bodies are preserved.
+function expWrap(ctx, text, maxW) {
+  const lines = [];
+  for (const para of String(text || '').split('\n')) {
+    let line = '';
+    for (const w of para.split(' ')) {
+      const t = line ? line + ' ' + w : w;
+      if (line && ctx.measureText(t).width > maxW) {
+        lines.push(line);
+        line = w;
+      } else line = t;
+    }
+    lines.push(line);
+  }
+  return lines;
+}
+
+// The pixel-notched rectangle (the CSS box-shadow trick, on canvas): a w×h
+// rect whose edges extend by b, leaving the corner cells uncovered.
+function expNotched(ctx, x, y, w, h, b, color) {
+  ctx.fillStyle = color;
+  ctx.fillRect(x - b, y, w + 2 * b, h);
+  ctx.fillRect(x, y - b, w, h + 2 * b);
+}
+function expDrawDie(ctx, x, y, value) {
+  const D = 130,
+    b = 5,
+    off = 8;
+  expNotched(ctx, x + off, y + off, D, D, b, EXP.shadow);
+  expNotched(ctx, x, y, D, D, b, EXP.card);
+  ctx.fillStyle = EXP.bevel; // bottom-right bevel
+  ctx.fillRect(x + D - 8, y, 8, D);
+  ctx.fillRect(x, y + D - 8, D, 8);
+  const layouts = {
+    1: [4],
+    2: [0, 8],
+    3: [0, 4, 8],
+    4: [0, 2, 6, 8],
+    5: [0, 2, 4, 6, 8],
+    6: [0, 2, 3, 5, 6, 8]
+  };
+  const on = new Set(layouts[value] || []);
+  const pad = 16,
+    gap = 5,
+    pip = 19;
+  const cell = (D - 2 * pad - 2 * gap) / 3;
+  ctx.fillStyle = '#111';
+  for (let i = 0; i < 9; i++) {
+    if (!on.has(i)) continue;
+    const cx = x + pad + i % 3 * (cell + gap) + cell / 2;
+    const cy = y + pad + Math.floor(i / 3) * (cell + gap) + cell / 2;
+    ctx.fillRect(Math.round(cx - pip / 2), Math.round(cy - pip / 2), pip, pip);
+  }
+}
+function expDrawCard(ctx, x, y, rank, suit) {
+  const Cw = 124,
+    Ch = 178,
+    b = 5,
+    off = 8;
+  expNotched(ctx, x + off, y + off, Cw, Ch, b, EXP.shadow);
+  expNotched(ctx, x, y, Cw, Ch, b, EXP.card);
+  ctx.fillStyle = SUITS[suit].red ? EXP.cardRed : EXP.cardInk;
+  ctx.font = '27px "Press Start 2P", monospace';
+  ctx.textAlign = 'left';
+  ctx.textBaseline = 'top';
+  ctx.fillText(rank, x + 14, y + 14);
+  ctx.textBaseline = 'alphabetic';
+  const map = PIXEL_SPRITES[suit],
+    px = 4;
+  const sw = map[0].length * px,
+    sh = map.length * px;
+  const sx = Math.round(x + (Cw - sw) / 2),
+    sy = Math.round(y + (Ch - sh) / 2 + 15);
+  map.forEach((row, ry) => {
+    for (let rx = 0; rx < row.length; rx++) if (row[rx] === '#') ctx.fillRect(sx + rx * px, sy + ry * px, px, px);
+  });
+}
+
+// A sparse band of the app's pixel sparkles across the top of the log.
+function expDrawStars(ctx, W) {
+  const gold = '#e8c98a',
+    blue = '#a8c2eb';
+  const plot = (x, y, cells, cellPx, color) => {
+    ctx.fillStyle = color;
+    cells.forEach(([cx, cy, w, h]) => ctx.fillRect(Math.round(x + cx * cellPx), Math.round(y + cy * cellPx), w * cellPx, h * cellPx));
+  };
+  const big = [[3, 0, 1, 7], [0, 3, 7, 1], [2, 2, 3, 3]]; // 4-arm star with a solid core
+  const cross = [[2, 0, 1, 5], [0, 2, 5, 1]];
+  const plus = [[1, 0, 1, 3], [0, 1, 3, 1]];
+  const dot = [[0, 0, 1, 1]];
+  plot(W * 0.16, 52, big, 5, gold);
+  plot(W * 0.78, 92, cross, 4, gold);
+  plot(W * 0.62, 34, plus, 5, blue);
+  plot(W * 0.34, 118, plus, 5, blue);
+  plot(W * 0.48, 76, dot, 5, blue);
+  plot(W * 0.90, 58, dot, 5, gold);
+}
+
+/* One code path, two passes: with measureOnly the same layout runs without
+   painting, returning the final height — so the canvas is sized exactly. */
+function paintJournalExport(ctx, p, sketchImg, measureOnly) {
+  const {
+      W,
+      PAD
+    } = EXP,
+    CW = W - 2 * PAD;
+  const draw = !measureOnly;
+  if (draw) {
+    ctx.fillStyle = '#000';
+    ctx.fillRect(0, 0, W, ctx.canvas.height);
+  }
+  if (draw) expDrawStars(ctx, W);
+  let y = 150; // star band
+  const PSIZE = 560; // the planet, hero of the log
+  if (draw) {
+    const pc = document.createElement('canvas');
+    pc.width = pc.height = 512;
+    if (window.PlanetRenderer) window.PlanetRenderer.renderPlanet(pc, seedForRecord(p));
+    ctx.imageSmoothingEnabled = false;
+    ctx.drawImage(pc, (W - PSIZE) / 2, y, PSIZE, PSIZE);
+  }
+  y += PSIZE + 78;
+  ctx.textAlign = 'center';
+  ctx.font = '46px "Press Start 2P", monospace';
+  if (draw) {
+    ctx.fillStyle = EXP.ink;
+    ctx.fillText(p.name.toUpperCase(), W / 2, y + 46);
+  }
+  y += 46 + 40;
+  ctx.font = 'italic 30px "Space Mono", monospace';
+  const sub = `Explored ${fmtDate(p.createdAt)} · ${p.entries.length} ${p.entries.length === 1 ? 'entry' : 'entries'}`;
+  if (draw) {
+    ctx.fillStyle = EXP.dim;
+    ctx.fillText(sub, W / 2, y + 30);
+  }
+  y += 30 + 64;
+  ctx.textAlign = 'left';
+  if (draw) {
+    ctx.fillStyle = EXP.line;
+    ctx.fillRect(PAD, y, CW, 3);
+  }
+  y += 3;
+  p.entries.forEach((e, i) => {
+    if (i > 0) {
+      if (draw) {
+        ctx.fillStyle = EXP.line;
+        ctx.fillRect(PAD, y, CW, 3);
+      }
+      y += 3;
+    }
+    y += 56;
+    const headH = 178; // die + card, die centered on the card
+    if (draw) {
+      if (e.roll) expDrawDie(ctx, PAD + 6, y + (headH - 130) / 2, e.roll);
+      expDrawCard(ctx, PAD + 6 + 130 + 36, y, e.rank, e.suit);
+    }
+    y += headH + 40;
+    // the discovery prompt, without the "Describe it…" instruction —
+    // context the app carries implicitly, needed on a standalone artifact
+    const promptText = (e.prompt || '').replace(/\s*Describe it in your journal\.\s*$/, '');
+    if (promptText) {
+      ctx.font = 'italic 30px "Space Mono", monospace';
+      const lines = expWrap(ctx, promptText, CW);
+      if (draw) {
+        ctx.fillStyle = EXP.dim;
+        lines.forEach((ln, k) => ctx.fillText(ln, PAD, y + 30 + k * 46));
+      }
+      y += lines.length * 46 + 26;
+    }
+    if (e.body) {
+      ctx.font = '32px "Space Mono", monospace';
+      const lines = expWrap(ctx, e.body, CW);
+      if (draw) {
+        ctx.fillStyle = EXP.ink;
+        lines.forEach((ln, k) => ctx.fillText(ln, PAD, y + 32 + k * 56));
+      }
+      y += lines.length * 56;
+    }
+    y += 48;
+  });
+  if (sketchImg) {
+    y += 24;
+    const sh = Math.round(CW * sketchImg.height / sketchImg.width);
+    if (draw) {
+      ctx.fillStyle = EXP.shadow;
+      ctx.fillRect(PAD + 13, y + 13, CW, sh);
+      ctx.fillStyle = EXP.card;
+      ctx.fillRect(PAD, y, CW, sh);
+      ctx.imageSmoothingEnabled = false;
+      ctx.drawImage(sketchImg, PAD, y, CW, sh);
+    }
+    y += sh + 26;
+  }
+  return y + 66;
+}
+async function renderJournalExport(p) {
+  if (document.fonts && document.fonts.ready) {
+    try {
+      await document.fonts.ready;
+    } catch (e) {}
+  }
+  const sketchImg = p.sketch ? await new Promise(res => {
+    const img = new Image();
+    img.onload = () => res(img);
+    img.onerror = () => res(null);
+    img.src = p.sketch;
+  }) : null;
+  const measure = document.createElement('canvas');
+  measure.width = measure.height = 1;
+  const H = Math.ceil(paintJournalExport(measure.getContext('2d'), p, sketchImg, true));
+  const canvas = document.createElement('canvas');
+  canvas.width = EXP.W;
+  canvas.height = H;
+  paintJournalExport(canvas.getContext('2d'), p, sketchImg, false);
+  return canvas;
 }
 
 /* ============================================================
@@ -497,7 +748,11 @@ function App() {
 
   // archive viewing
   const [viewId, setViewId] = useState(null);
-  const [toast, setToast] = useState(false);
+  const [toast, setToast] = useState(null); // message string, or null
+
+  // export / share
+  const [sharing, setSharing] = useState(false);
+  const restoreInputRef = useRef(null);
   const allDone = session && session.cards.every(c => c.done);
   const remaining = session ? session.cards.filter(c => !c.done).length : 0;
 
@@ -654,8 +909,88 @@ function App() {
     setActiveIndex(null);
     setSelectedIndex(null);
     setDraftText('');
-    setToast(true);
+    setToast('Journal published.');
     setScreen('archive');
+  }
+
+  /* ---------- share / save / restore ---------- */
+  // Renders the ship's-log PNG and hands it to the native share sheet
+  // (mobile); where files can't be shared, downloads it instead.
+  async function shareJournal(p) {
+    if (sharing) return;
+    setSharing(true);
+    try {
+      const canvas = await renderJournalExport(p);
+      const blob = await new Promise(res => canvas.toBlob(res, 'image/png'));
+      const slug = (p.name || '').toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-+|-+$/g, '') || 'journal';
+      const file = new File([blob], slug + '-log.png', {
+        type: 'image/png'
+      });
+      if (navigator.canShare && navigator.canShare({
+        files: [file]
+      })) {
+        try {
+          await navigator.share({
+            files: [file]
+          });
+        } catch (err) {
+          if (!err || err.name !== 'AbortError') downloadBlob(blob, file.name);
+        }
+      } else {
+        downloadBlob(blob, file.name);
+      }
+    } catch (e) {/* export failed; leave the journal untouched */} finally {
+      setSharing(false);
+    }
+  }
+  function exportArchive() {
+    const payload = {
+      format: ARCHIVE_FORMAT,
+      version: ARCHIVE_VERSION,
+      exportedAt: new Date().toISOString(),
+      planetCount: archive.length,
+      planets: archive
+    };
+    const blob = new Blob([JSON.stringify(payload, null, 2)], {
+      type: 'application/json'
+    });
+    const d = new Date(),
+      p2 = n => String(n).padStart(2, '0');
+    downloadBlob(blob, `alone-among-the-stars-archive-${d.getFullYear()}-${p2(d.getMonth() + 1)}-${p2(d.getDate())}.json`);
+  }
+  function requestRestore() {
+    if (restoreInputRef.current) restoreInputRef.current.click();
+  }
+  // Merge by planet id: restoring the same file twice is harmless, and a
+  // restore never removes journeys already on the device.
+  function onRestoreFile(ev) {
+    const f = ev.target.files && ev.target.files[0];
+    ev.target.value = ''; // allow re-picking the same file
+    if (!f) return;
+    const reader = new FileReader();
+    reader.onload = () => {
+      let planets = null;
+      try {
+        const data = JSON.parse(reader.result);
+        if (data && data.format === ARCHIVE_FORMAT && Array.isArray(data.planets)) planets = data.planets;else if (Array.isArray(data)) planets = data; // a raw archive array also restores
+      } catch (e) {}
+      if (!planets) {
+        setToast("This doesn't look like a ship's log.");
+        return;
+      }
+      const valid = planets.filter(p => p && p.id && p.name && Array.isArray(p.entries));
+      const have = new Set(archive.map(p => p.id));
+      const fresh = valid.filter(p => !have.has(p.id));
+      if (fresh.length === 0) {
+        setToast('Nothing new to restore.');
+        return;
+      }
+      const next = [...fresh, ...archive].sort((a, b) => (b.createdAt || 0) - (a.createdAt || 0));
+      setArchive(next);
+      saveArchive(next);
+      setToast(`${fresh.length} ${fresh.length === 1 ? 'journey' : 'journeys'} restored.`);
+    };
+    reader.readAsText(f);
   }
   function burnSession() {
     setOverlay(null);
@@ -713,7 +1048,7 @@ function App() {
     }, "Embark"), /*#__PURE__*/React.createElement("button", {
       className: "btn",
       onClick: () => {
-        setToast(false);
+        setToast(null);
         setScreen('archive');
       }
     }, "Archive"))), /*#__PURE__*/React.createElement(Chrome, {
@@ -967,7 +1302,13 @@ function App() {
       className: "center"
     }, /*#__PURE__*/React.createElement("p", {
       className: "empty-archive"
-    }, "No journeys yet. Embark to find your first planet.")) : /*#__PURE__*/React.createElement("div", {
+    }, "No journeys yet. Embark to find your first planet."), /*#__PURE__*/React.createElement("button", {
+      className: "btn small",
+      style: {
+        marginTop: '22px'
+      },
+      onClick: requestRestore
+    }, "Restore archive")) : /*#__PURE__*/React.createElement(React.Fragment, null, /*#__PURE__*/React.createElement("div", {
       className: "archive-grid"
     }, archive.map(p => /*#__PURE__*/React.createElement("div", {
       key: p.id,
@@ -988,11 +1329,27 @@ function App() {
       className: "pname"
     }, p.name), /*#__PURE__*/React.createElement("div", {
       className: "pdate"
-    }, fmtDate(p.createdAt))))), toast && /*#__PURE__*/React.createElement("div", {
+    }, fmtDate(p.createdAt))))), /*#__PURE__*/React.createElement("div", {
+      className: "archive-util"
+    }, /*#__PURE__*/React.createElement("button", {
+      className: "btn small",
+      onClick: exportArchive
+    }, "Save archive"), /*#__PURE__*/React.createElement("button", {
+      className: "btn small",
+      onClick: requestRestore
+    }, "Restore"))), /*#__PURE__*/React.createElement("input", {
+      ref: restoreInputRef,
+      type: "file",
+      accept: ".json,application/json",
+      style: {
+        display: 'none'
+      },
+      onChange: onRestoreFile
+    }), toast && /*#__PURE__*/React.createElement("div", {
       className: "toast"
-    }, /*#__PURE__*/React.createElement("span", null, "Journal published."), /*#__PURE__*/React.createElement("button", {
+    }, /*#__PURE__*/React.createElement("span", null, toast), /*#__PURE__*/React.createElement("button", {
       "aria-label": "Dismiss",
-      onClick: () => setToast(false)
+      onClick: () => setToast(null)
     }, "\u2715")), /*#__PURE__*/React.createElement(Chrome, {
       onHome: onHome,
       onHelp: () => setOverlay('help')
@@ -1009,7 +1366,7 @@ function App() {
       className: "close-x",
       "aria-label": "Close",
       onClick: () => {
-        setToast(false);
+        setToast(null);
         setScreen('archive');
       }
     }, "\u2715"), /*#__PURE__*/React.createElement("div", {
@@ -1054,14 +1411,18 @@ function App() {
       src: p.sketch,
       alt: "Sketch from the journey"
     }))), /*#__PURE__*/React.createElement("div", {
-      className: "btn-stack",
-      style: {
-        paddingTop: '24px'
-      }
+      className: "fj-actions-row"
     }, /*#__PURE__*/React.createElement("button", {
       className: "btn danger",
       onClick: () => setOverlay('burn')
-    }, "Burn journal")));
+    }, "Burn journal"), /*#__PURE__*/React.createElement("button", {
+      className: "btn primary",
+      disabled: sharing,
+      style: {
+        opacity: sharing ? .4 : 1
+      },
+      onClick: () => shareJournal(p)
+    }, "Share")));
   }
 
   /* ---------- overlays ---------- */
