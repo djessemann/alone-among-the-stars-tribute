@@ -6,7 +6,12 @@
 <meta name="theme-color" content="#000000" />
 <meta name="apple-mobile-web-app-capable" content="yes" />
 <meta name="mobile-web-app-capable" content="yes" />
-<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
+<!-- "black" = iOS reserves an opaque status bar and starts the app BELOW it,
+     so content can never render under the clock. ("black-translucent" made the
+     status bar an overlay on top of a full-screen app — the source of the
+     content-under-status-bar bleed on installed web apps. Revert by flipping
+     this value back.) -->
+<meta name="apple-mobile-web-app-status-bar-style" content="black" />
 <meta name="apple-mobile-web-app-title" content="Stars" />
 <title>Alone Among the Stars</title>
 <meta property="og:title" content="Alone Among the Stars" />
